@@ -1,0 +1,32 @@
+services:
+  aria:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4321
+      ARIA_RUNTIME: node
+      ARIA_STORAGE_BACKEND: sqlite
+      ARIA_AUTH_BACKEND: local-libsql
+    expose:
+      - "4321"
+    volumes:
+      - aria_storage:/app/aria/storage
+      - aria_uploads:/app/public/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4321/admin').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  aria_storage:
+  aria_uploads:

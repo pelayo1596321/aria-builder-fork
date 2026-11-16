@@ -58,6 +58,14 @@ For Cloudflare bindings locally, use `npm run dev:edge`.
 
 Open [http://localhost:4321/admin](http://localhost:4321/admin) and finish setup at `/admin`.
 
+#### Deploy with Docker or Dokploy
+
+The Node + SQLite runtime is also packaged for self-hosting with Docker Compose.
+In Dokploy, create a Compose service from this repository, route its `aria`
+service on port `4321`, and finish first-admin setup at `/admin/setup` after the
+hostname is ready. Persistent volumes store the database and uploaded media.
+See [Dokploy deployment instructions](DEPLOYMENT_DOKPLOY.md).
+
 #### Optional Cloudflare Analytics
 After you attach a Cloudflare-managed custom domain, you can show zone traffic inside Aria. Setup: [Cloudflare deployment guide](https://ariabuilder.io/docs/deployment/cloudflare/).
 

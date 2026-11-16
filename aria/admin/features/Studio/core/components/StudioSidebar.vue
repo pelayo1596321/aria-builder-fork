@@ -744,7 +744,6 @@ const showSubmenuPanel = computed(
     (!isCollapsed.value ||
       showCollapsedSubmenuPanel.value ||
       isOnlineStoreRoute.value) &&
-    Boolean(openGroups.value["online-store"]) &&
     Boolean(openSubmenuItem.value),
 );
 
