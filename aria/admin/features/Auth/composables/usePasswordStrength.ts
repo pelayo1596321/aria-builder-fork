@@ -15,6 +15,7 @@ export interface UsePasswordStrengthReturn {
   feedback: Ref<string[]>;
   percentWidth: Ref<string>;
   colorClass: Ref<string>;
+  colorStyle: Ref<Record<string, string>>;
 }
 
 export function calculatePasswordStrength(
@@ -116,10 +117,17 @@ export function usePasswordStrength(
       case "weak":
         return "bg-destructive";
       case "medium":
-        return "bg-secondary";
+        return "";
       case "strong":
         return "bg-primary";
     }
+  });
+
+  const colorStyle = computed((): Record<string, string> => {
+    if (result.value.strength === "medium") {
+      return { backgroundColor: "var(--warning, #f59e0b)" };
+    }
+    return {};
   });
 
   return {
@@ -128,5 +136,6 @@ export function usePasswordStrength(
     feedback,
     percentWidth,
     colorClass,
+    colorStyle,
   };
 }

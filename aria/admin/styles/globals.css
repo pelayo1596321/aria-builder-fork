@@ -40,6 +40,9 @@
   --cf-brand-text: #f6821f;
   --cf-on-brand: oklch(0.9248 0.0158 42.38);
 
+  /* Aria brand green — shared by the default interface and theme previews */
+  --aria-brand-primary: oklch(0.5437 0.0932 185.21);
+
   /* Fonts */
   --font-sans: "Outfit", "Helvetica Neue", Arial, sans-serif;
   --font-serif:

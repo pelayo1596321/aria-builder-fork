@@ -2,28 +2,20 @@
 /**
  * LoginForm Component
  *
- * Focused passkey-first login form with password/TOTP recovery support.
+ * Username/email and password login form with TOTP support.
  * Mutations stay behind Astro Actions.
  *
  * @component
  */
 
 import { ref, computed, nextTick, onBeforeUnmount, onMounted } from "vue";
-import { startAuthentication } from "@simplewebauthn/browser";
 import {
   LoginFormSchema,
   type LoginFormData,
   type LoginFormState,
 } from "../types";
-import {
-  getAuthMethodAvailability,
-  getLoginCaptchaConfig,
-  loginUser,
-  passkeyLoginOptions,
-  passkeyLoginVerify,
-} from "../composables/useAuthApi";
+import { getLoginCaptchaConfig, loginUser } from "../composables/useAuthApi";
 import type { LoginCaptchaConfig } from "../composables/useAuthApi";
-import { useLoginShell } from "../composables/useLoginShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +26,6 @@ import {
 } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AuthenticationResponseJSONSchema } from "@/lib/auth/types";
 import { useStudioI18n } from "@/i18n";
 import { localizeAuthError } from "../utils/localizeAuthError";
 
@@ -53,11 +44,10 @@ const formState = ref<LoginFormState>({
   showTotpInput: false,
 });
 
-const loginShell = useLoginShell();
 const { t } = useStudioI18n();
 
 const totpValue = ref("");
-const passkeyLoading = ref(false);
+const showPassword = ref(false);
 const captchaConfig = ref<LoginCaptchaConfig>({ enabled: false });
 const captchaLoading = ref(true);
 const captchaLoadError = ref<string | null>(null);
@@ -90,10 +80,6 @@ const buttonText = computed(() => {
   if (formState.value.isLoading) return t("auth.signingIn");
   return t("auth.signIn");
 });
-
-const passkeyButtonText = computed(() =>
-  passkeyLoading.value ? t("auth.checkingPasskey") : t("auth.signInWithPasskey"),
-);
 
 function clearError(): void {
   formState.value.error = null;
@@ -165,65 +151,6 @@ async function initializeCaptcha(): Promise<void> {
       captchaLoadError.value = t("auth.captcha.timedOut");
     },
   });
-}
-
-async function handlePasskeyLogin(): Promise<void> {
-  clearError();
-  loginShell.state.value.passkeyMessage = null;
-
-  if (loginShell.passkeyDisabled.value) {
-    const message =
-      loginShell.passkeyStatusMessage.value ??
-      t("auth.passkeyUnavailable");
-    setError(message);
-    return;
-  }
-
-  passkeyLoading.value = true;
-
-  try {
-    const { data, error } = await passkeyLoginOptions(
-      formData.value.identifier || undefined,
-    );
-
-    if (error || !data) {
-      setError(localizeAuthError(error, t));
-      return;
-    }
-
-    const response = await startAuthentication({ optionsJSON: data.options });
-    const verified = await passkeyLoginVerify({
-      challengeId: data.challengeId,
-      response: AuthenticationResponseJSONSchema.parse(response),
-      rememberMe: formData.value.rememberMe,
-    });
-
-    if (verified.error) {
-      setError(localizeAuthError(verified.error, t));
-      loginShell.showPasswordOptions();
-      return;
-    }
-
-    if (verified.data?.status === "success") {
-      formState.value.success = true;
-      window.location.href = "/admin";
-      return;
-    }
-
-    setError(t("auth.passkeySignInRetry"));
-    loginShell.showPasswordOptions();
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error && error.name === "NotAllowedError"
-        ? t("auth.passkeySignInCancelled")
-        : t("auth.passkeySignInRetry");
-    setError(message);
-    if (error instanceof Error && error.name !== "NotAllowedError") {
-      loginShell.showPasswordOptions();
-    }
-  } finally {
-    passkeyLoading.value = false;
-  }
 }
 
 async function handleSubmit(): Promise<void> {
@@ -299,16 +226,6 @@ onMounted(() => {
     setError(localizeAuthError(urlError, t));
   }
 
-  void getAuthMethodAvailability()
-    .then(({ data }) => {
-      if (data?.passkey.enabled === false) {
-        loginShell.setPasskeyReadiness("backend_unavailable");
-      }
-    })
-    .catch(() => {
-      loginShell.showPasswordOptions();
-    });
-
   void getLoginCaptchaConfig()
     .then(async ({ data, error }) => {
       if (error || !data) {
@@ -345,37 +262,6 @@ onBeforeUnmount(() => {
       </AlertDescription>
     </Alert>
 
-    <div
-      v-if="loginShell.passkeyVisible.value"
-      class="space-y-3"
-    >
-      <Button
-        type="button"
-        class="w-full"
-        size="lg"
-        :disabled="passkeyLoading || loginShell.passkeyDisabled.value"
-        @click="handlePasskeyLogin"
-      >
-        {{ passkeyButtonText }}
-      </Button>
-      <p
-        v-if="loginShell.passkeyStatusMessage.value"
-        class="px-1 text-center text-xs text-muted-foreground"
-      >
-        {{ loginShell.passkeyStatusMessage.value }}
-      </p>
-      <p class="text-center">
-        <button
-          type="button"
-          class="text-xs text-muted-foreground hover:text-primary transition-colors"
-          @click="loginShell.togglePasswordOptions()"
-        >
-          {{ loginShell.passwordOptionsLabel.value }}
-        </button>
-      </p>
-    </div>
-
-    <template v-if="loginShell.passwordVisible.value">
     <div class="space-y-2">
       <Label
         for="identifier"
@@ -393,7 +279,7 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <div class="space-y-2">
+    <div class="relative space-y-2">
       <Label
         for="password"
         class="text-sm! text-muted-foreground"
@@ -402,11 +288,18 @@ onBeforeUnmount(() => {
       <Input
         id="password"
         v-model="formData.password"
-        type="password"
+        :type="showPassword ? 'text' : 'password'"
         :placeholder="t('auth.password')"
         required
         autocomplete="current-password"
-        class="bg-background-70 border-dashed"
+        class="bg-background-70 border-dashed pr-12"
+      />
+      <button
+        type="button"
+        class="absolute right-3 top-[28px] size-5 cursor-pointer text-foreground/80 transition-colors hover:text-primary"
+        :class="showPassword ? 'i-lucide:eye-off' : 'i-lucide:eye'"
+        :aria-label="t('auth.togglePasswordVisibility')"
+        @click="showPassword = !showPassword"
       />
     </div>
 
@@ -458,7 +351,5 @@ onBeforeUnmount(() => {
     >
       {{ formState.showTotpInput ? t("auth.verifyCode") : buttonText }}
     </Button>
-    </template>
-
   </form>
 </template>

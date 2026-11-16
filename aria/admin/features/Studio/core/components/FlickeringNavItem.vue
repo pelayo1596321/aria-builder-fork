@@ -34,10 +34,20 @@ const variant = computed(() => (props.active ? "nav-active" : "nav"));
 const rowClass = computed(() =>
   cn(
     FLICKERING_NAV_ITEM_ROW_CLASS,
-    props.active && "bg-sidebar",
+    props.active && "text-sidebar-foreground",
     props.dropHighlight && !props.active && "bg-sidebar/60 nav-border-active",
     props.class,
   ),
+);
+
+const activeStyle = computed(() =>
+  props.active
+    ? {
+        backgroundColor:
+          "color-mix(in oklch, var(--aria-brand-primary) 20%, transparent)",
+        boxShadow: "inset 2px 0 0 var(--aria-brand-primary)",
+      }
+    : undefined,
 );
 </script>
 
@@ -48,6 +58,7 @@ const rowClass = computed(() =>
     :variant="variant"
     :disabled="disabled"
     :class="rowClass"
+    :style="activeStyle"
     :role="rowAs === 'div' ? 'button' : undefined"
     :tabindex="rowAs === 'div' && !disabled ? 0 : undefined"
   >

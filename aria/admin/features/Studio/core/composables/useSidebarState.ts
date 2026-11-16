@@ -1,4 +1,4 @@
-import { ref, computed, watch } from "vue";
+import { ref, watch } from "vue";
 import { SIDEBAR_TOGGLE_SHORTCUT_KEY } from "@/lib/keyboardShortcuts";
 
 export { SIDEBAR_TOGGLE_SHORTCUT_KEY };
@@ -17,8 +17,6 @@ const openGroups = ref<Record<string, boolean>>({
   media: false,
   design: false,
 });
-
-const sidebarWidth = computed(() => (isCollapsed.value ? "w-12" : "w-60"));
 
 const isSidebarAnimating = ref(false);
 let sidebarAnimTimer: ReturnType<typeof setTimeout> | null = null;
@@ -131,7 +129,6 @@ export function useSidebarState() {
     isCollapsed,
     isSidebarAnimating,
     openGroups,
-    sidebarWidth,
     toggleSidebar,
     toggleGroup,
     closeAllGroups,

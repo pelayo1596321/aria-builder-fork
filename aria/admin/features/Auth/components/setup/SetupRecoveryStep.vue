@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,10 +9,10 @@ import type { SetupWizardData } from "../../schemas/setupWizard";
 
 const formData = defineModel<SetupWizardData>("formData", { required: true });
 const { t } = useStudioI18n();
-const passwordInput = ref<{ focus: () => void } | null>(null);
-
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 const passwordRef = computed(() => formData.value.password);
-const { percentWidth, colorClass } = usePasswordStrength(passwordRef);
+const { percentWidth, colorClass, colorStyle } = usePasswordStrength(passwordRef);
 
 const hasPasswordValue = computed(() => formData.value.password.length > 0);
 const hasConfirmValue = computed(
@@ -24,40 +24,36 @@ const passwordsMatch = computed(
     formData.value.password === formData.value.confirmPassword,
 );
 
-onMounted(() => {
-  passwordInput.value?.focus();
-});
 </script>
 
 <template>
   <div class="space-y-7">
-    <div class="space-y-1">
-      <h2 class="font-serif text-xl font-medium text-foreground m-0">
-        {{ t("auth.recovery.title") }}
-      </h2>
-      <p class="text-sm leading-relaxed text-muted-foreground">
-        {{ t("auth.recovery.description") }}
-      </p>
-    </div>
-
     <div class="relative space-y-2">
       <Label
         for="setup-password"
         class="text-2xs! font-mono font-medium uppercase tracking-wider text-muted-foreground/80"
       >
-        {{ t("auth.recoveryPassword") }}
+        {{ t("auth.password") }}
       </Label>
-      <Input
-        ref="passwordInput"
-        id="setup-password"
-        v-model="formData.password"
-        type="password"
-        autocomplete="new-password"
-        :placeholder="t('auth.createRecoveryPassword')"
-        required
-        minlength="7"
-        class="border-dashed bg-background-70"
-      />
+      <div class="relative">
+        <Input
+          id="setup-password"
+          v-model="formData.password"
+          :type="showPassword ? 'text' : 'password'"
+          autocomplete="new-password"
+          :placeholder="t('auth.newPassword')"
+          required
+          minlength="7"
+          class="border-dashed bg-background-70 pr-12"
+        />
+        <button
+          type="button"
+          class="absolute right-3 top-1/2 size-5 -translate-y-1/2 cursor-pointer text-accent"
+          :class="showPassword ? 'i-lucide:eye-off' : 'i-lucide:eye'"
+          :aria-label="t('auth.togglePasswordVisibility')"
+          @click="showPassword = !showPassword"
+        />
+      </div>
       <p class="pl-1 text-2xs text-muted-foreground">
         {{ t("auth.minimumPasswordLength") }}
       </p>
@@ -70,7 +66,7 @@ onMounted(() => {
       <div
         class="h-full transition-all duration-300 ease-out motion-reduce:transition-none"
         :class="colorClass"
-        :style="{ width: percentWidth }"
+        :style="{ width: percentWidth, ...colorStyle }"
       />
     </div>
 
@@ -81,16 +77,25 @@ onMounted(() => {
       >
         {{ t("auth.confirmPassword") }}
       </Label>
-      <Input
-        id="setup-confirm-password"
-        v-model="formData.confirmPassword"
-        type="password"
-        autocomplete="new-password"
-        :placeholder="t('auth.confirmRecoveryPassword')"
-        required
-        class="border-dashed bg-background-70"
-        :aria-invalid="hasConfirmValue && !passwordsMatch"
-      />
+      <div class="relative">
+        <Input
+          id="setup-confirm-password"
+          v-model="formData.confirmPassword"
+          :type="showConfirmPassword ? 'text' : 'password'"
+          autocomplete="new-password"
+          :placeholder="t('auth.confirmNewPassword')"
+          required
+          class="border-dashed bg-background-70 pr-12"
+          :aria-invalid="hasConfirmValue && !passwordsMatch"
+        />
+        <button
+          type="button"
+          class="absolute right-3 top-1/2 size-5 -translate-y-1/2 cursor-pointer text-accent"
+          :class="showConfirmPassword ? 'i-lucide:eye-off' : 'i-lucide:eye'"
+          :aria-label="t('auth.togglePasswordVisibility')"
+          @click="showConfirmPassword = !showConfirmPassword"
+        />
+      </div>
       <p
         v-if="hasConfirmValue && !passwordsMatch"
         class="pl-1 text-2xs text-destructive"

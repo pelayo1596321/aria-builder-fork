@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { defineAsyncComponent, computed, watch } from "vue";
+import {
+  defineAsyncComponent,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  watch,
+} from "vue";
 import { useSettingsDialog } from "@/features/Studio/settings";
 import { useHistoryDialog } from "@/features/Studio/history";
 import { useRoute } from "vue-router";
@@ -42,9 +49,19 @@ import SidebarLogo from "./SidebarLogo.vue";
 import SidebarNavItem from "./SidebarNavItem.vue";
 import SidebarNavGroup from "./SidebarNavGroup.vue";
 import SidebarUser from "./SidebarUser.vue";
+import StudioRailFrame from "./StudioRailFrame.vue";
 import SlidingNavIndicator from "./SlidingNavIndicator.vue";
+import FlickeringNavItem from "./FlickeringNavItem.vue";
+import StudioInlineCreateNavRow from "./StudioInlineCreateNavRow.vue";
 import { useInjectedPrewarmBuilder } from "@/features/Core/composables/useAppInjectedRuntime";
 import { useComponentGrouping } from "@/features/Studio/components/composables/useComponentGrouping";
+import { useMediaGrouping } from "@/features/Studio/media/composables/useMediaGrouping";
+import { countPages, type PagesFilter } from "@/features/Studio/pages/composables/usePagesListState";
+import {
+  loadSharedMediaAssets,
+  sharedMediaAssets,
+} from "@/features/Studio/media/composables/useMediaAssets";
+import { matchesActiveFilter } from "@/features/Studio/media/composables/useMediaViewState";
 import { isUserComponent } from "@/features/Studio/components/lib/isUserComponent";
 import {
   buildComponentsNavChildren,
@@ -54,9 +71,8 @@ import {
   buildMediaNavChildren,
   isMediaNavChildActive,
 } from "@/features/Studio/media/lib/buildMediaNavChildren";
+import { toMediaListPath } from "@/features/Studio/media/lib/mediaRouteFilter";
 import { useCollectionsList } from "@/features/CMS/composables/useCollectionsList";
-import { useCollectionIcons } from "@/features/CMS/composables/useCollectionIcons";
-import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import {
   prewarmCollection,
   prewarmEntryList,
@@ -77,10 +93,20 @@ const StudioCommandPalette = defineAsyncComponent(
 
 const prewarmBuilder = useInjectedPrewarmBuilder();
 let hasPrewarmedBuilder = false;
+let hasRequestedMediaCountAssets = false;
 const PREWARM_GROUPS = new Set<string>(["pages", "layouts", "components"]);
 function handleNavGroupHover(groupId: string): void {
   if (groupId === "collections") {
     requestCollectionsForSidebar();
+  }
+
+  if (groupId === "media" && !hasRequestedMediaCountAssets) {
+    hasRequestedMediaCountAssets = true;
+    void loadSharedMediaAssets({ source: "StudioSidebar.mediaCounts" }).catch(
+      () => {
+        hasRequestedMediaCountAssets = false;
+      },
+    );
   }
 
   if (!hasPrewarmedBuilder && PREWARM_GROUPS.has(groupId)) {
@@ -116,7 +142,6 @@ const {
   isCollapsed,
   isSidebarAnimating,
   openGroups,
-  sidebarWidth,
   toggleSidebar,
   toggleGroup,
   closeAllGroups,
@@ -126,7 +151,6 @@ const {
   isLoading: collectionsLoading,
   loadCollections,
 } = useCollectionsList();
-const { getCollectionIcon, getCollectionIconForKind } = useCollectionIcons();
 let hasRequestedCollectionsForSidebar = false;
 
 function requestCollectionsForSidebar(): void {
@@ -155,6 +179,7 @@ watch(
   (path) => {
     if (path === "/dashboard") {
       closeAllGroups();
+      openGroups.value["online-store"] = true;
     }
     if (path.startsWith("/components")) {
       openGroups.value.components = true;
@@ -172,6 +197,15 @@ const userComponents = computed(() =>
 );
 
 const componentGrouping = useComponentGrouping(userComponents);
+const mediaGrouping = useMediaGrouping(computed(() => []));
+
+async function createSidebarComponentGroup(name: string): Promise<void> {
+  await componentGrouping.createCustomGroup(name);
+}
+
+async function createSidebarMediaFolder(name: string): Promise<void> {
+  await mediaGrouping.createCustomGroup(name);
+}
 
 const componentsNavChildren = computed(() => {
   if (!componentGrouping.canReadGrouping.value) {
@@ -191,12 +225,68 @@ const componentsNavChildren = computed(() => {
 const isComponentsRoute = computed(() => route.path.startsWith("/components"));
 const shouldAnimateSidebarWidth = computed(() => !isComponentsRoute.value);
 
-const mediaNavChildren = computed(() =>
-  buildMediaNavChildren().map((child) => ({
+const mediaNavChildren = computed(() => {
+  const typeChildren = buildMediaNavChildren().map((child) => ({
     ...child,
     label: mediaNavLabel(child.filter),
-  })),
-);
+  }));
+  if (!mediaGrouping.canReadGrouping.value) return typeChildren;
+
+  return [
+    ...typeChildren,
+    ...mediaGrouping.customGroups.value.map((group) => ({
+      label: group.name,
+      path: toMediaListPath({ group: group.id }),
+      groupId: group.id,
+      section: "folder" as const,
+    })),
+  ];
+});
+
+function getComponentNavCount(
+  child: (typeof componentsNavChildren.value)[number],
+): number {
+  if (child.groupId) {
+    return componentGrouping.getGroupMemberCount(
+      child.groupId,
+      userComponents.value,
+    );
+  }
+  return userComponents.value.length;
+}
+
+function getMediaNavCount(
+  child: (typeof mediaNavChildren.value)[number],
+): number {
+  if (child.groupId) {
+    return mediaGrouping.getGroupMemberCount(
+      child.groupId,
+      sharedMediaAssets.value,
+    );
+  }
+  const filter = child.filter ?? "all";
+  return sharedMediaAssets.value.filter((asset) =>
+    matchesActiveFilter(asset, filter),
+  ).length;
+}
+
+function getCollectionEntryCount(child: CollectionsNavChild): number {
+  if (!child.collectionName) {
+    return collections.value.reduce(
+      (total, collection) => total + collection.itemCount,
+      0,
+    );
+  }
+  return collections.value.find(
+    (collection) => collection.name === child.collectionName,
+  )?.itemCount ?? 0;
+}
+
+function formatEntryCount(count: number): string {
+  return count === 1
+    ? t("collections.oneEntry")
+    : t("collections.entryCount", { count });
+}
 const collectionsNavChildren = computed(() =>
   buildCollectionsNavChildren(collections.value).map((child) => ({
     ...child,
@@ -273,6 +363,7 @@ function isActive(path: string): boolean {
 }
 
 function isGroupActive(path: string): boolean {
+  if (path === "/online-store") return isOnlineStoreRoute.value;
   return route.path.startsWith(path);
 }
 
@@ -361,16 +452,84 @@ async function handleLogout() {
   }
 }
 
-function navigateAndOpenGroup(path: string, groupId: string) {
-  if (groupId === "design") {
-    router.navigateTo("/design?colors");
-  } else {
-    router.navigateTo(path);
-  }
+function expandSidebarForGroup(groupId: string): void {
   if (!isCollapsed.value) {
+    toggleGroup(groupId);
+    return;
+  }
+
+  toggleSidebar();
+  void nextTick(() => {
     closeAllGroups();
     openGroups.value[groupId] = true;
+    if (groupId === "online-store") {
+      selectedSubmenuGroupOverride.value = groupId;
+    }
+  });
+}
+
+function getFirstSubmenuPath(groupId: string): string | undefined {
+  switch (groupId) {
+    case "online-store":
+      return onlineStoreChildren.value[0]?.path;
+    case "pages":
+      return pageNavChildren.value[0]?.path;
+    case "layouts":
+      return layoutNavChildren.value[0]?.path;
+    case "components":
+      return componentsNavChildren.value[0]?.path;
+    case "collections":
+      return collectionsNavChildren.value[0]?.path;
+    case "media":
+      return mediaNavChildren.value[0]?.path;
+    case "design": {
+      const firstSection = DESIGN_SIDEBAR_CHILDREN[0];
+      return firstSection ? `/design?${firstSection.param}` : undefined;
+    }
+    default:
+      return undefined;
   }
+}
+
+function toggleSidebarGroup(groupId: string): void {
+  if (groupId === "online-store") {
+    if (openGroups.value[groupId]) {
+      closeAllGroups();
+      selectedSubmenuGroupOverride.value = null;
+      return;
+    }
+
+    closeAllGroups();
+    openGroups.value[groupId] = true;
+    selectedSubmenuGroupOverride.value = groupId;
+    if (!isOnlineStoreRoute.value) {
+      const firstSubmenuPath = getFirstSubmenuPath(groupId);
+      if (firstSubmenuPath) router.navigateTo(firstSubmenuPath);
+    }
+    return;
+  }
+
+  selectedSubmenuGroupOverride.value = null;
+  const isOpening = !openGroups.value[groupId];
+  toggleGroup(groupId);
+  if (!isOpening) return;
+
+  const firstSubmenuPath = getFirstSubmenuPath(groupId);
+  if (firstSubmenuPath) router.navigateTo(firstSubmenuPath);
+}
+
+function selectOnlineStoreChild(path: string): void {
+  hideCollapsedSidebarHoverMenu();
+  selectedSubmenuGroupOverride.value = null;
+
+  if (isCollapsed.value) {
+    openGroups.value["online-store"] = true;
+    showCollapsedSubmenuPanel.value = true;
+    navigateTo(path);
+    return;
+  }
+
+  navigateTo(path);
 }
 
 interface SidebarFilterChild {
@@ -387,6 +546,11 @@ const pageNavChildren = computed<SidebarFilterChild[]>(() => [
   { label: t("sidebar.archived"), path: "/pages?filter=archived", filter: "archived" },
   { label: t("sidebar.modified"), path: "/pages?filter=modified", filter: "modified" },
 ]);
+const pageCounts = computed(() => countPages(pages.value));
+
+function getPageNavCount(child: SidebarFilterChild): number {
+  return pageCounts.value[(child.filter ?? "all") as PagesFilter];
+}
 
 const layoutNavChildren = computed<SidebarFilterChild[]>(() => [
   { label: t("sidebar.allLayouts"), path: "/layouts" },
@@ -403,23 +567,8 @@ function isSidebarFilterChildActive(
   return route.path === basePath;
 }
 
-function getCollectionNavIcon(child: CollectionsNavChild): string {
-  if (!child.collectionName) {
-    return studioIcons.collections;
-  }
-  return child.iconName
-    ? getCollectionIcon(child.iconName)
-    : getCollectionIconForKind(child.kind ?? "content");
-}
-
-const navItems = computed(() => {
+const sectionNavItems = computed(() => {
   const items = [
-    {
-      type: "item" as const,
-      label: t("sidebar.dashboard"),
-      path: "/dashboard",
-      icon: studioIcons.dashboard,
-    },
     {
       type: "group" as const,
       label: t("sidebar.pages"),
@@ -471,27 +620,169 @@ const navItems = computed(() => {
   return items;
 });
 
+const onlineStoreChildren = computed(() => [
+  { label: "Dashboard", path: "/dashboard" },
+  { label: t("sidebar.pages"), path: "/pages" },
+  {
+    label: t("sidebar.components"),
+    path: "/components",
+  },
+  ...(isFeatureEnabled("studio.layouts")
+    ? [{ label: t("sidebar.layouts"), path: "/layouts" }]
+    : []),
+  {
+    label: t("sidebar.collections"),
+    path: "/collections",
+  },
+  { label: t("sidebar.media"), path: "/media" },
+  {
+    label: t("sidebar.design"),
+    path: "/design?colors",
+  },
+]);
+type CollapsedSidebarHoverMenu = {
+  title: string;
+  left: number;
+  top: number;
+  children: Array<{ label: string; path: string }>;
+};
+const collapsedSidebarHoverMenu = ref<CollapsedSidebarHoverMenu | null>(null);
+let collapsedSidebarHoverTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const collapsedSidebarHoverMenuStyle = computed(() => {
+  const menu = collapsedSidebarHoverMenu.value;
+  if (!menu) return {};
+
+  const estimatedHeight = menu.children.length > 0
+    ? 44 + menu.children.length * 36
+    : 40;
+  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  return {
+    left: `${menu.left}px`,
+    top: `${Math.max(8, Math.min(menu.top, viewportHeight - estimatedHeight - 8))}px`,
+  };
+});
+
+function showCollapsedSidebarHoverMenu(
+  title: string,
+  event: MouseEvent,
+  children: Array<{ label: string; path: string }> = [],
+): void {
+  if (!isCollapsed.value || !(event.currentTarget instanceof HTMLElement)) return;
+  if (collapsedSidebarHoverTimeout) {
+    clearTimeout(collapsedSidebarHoverTimeout);
+    collapsedSidebarHoverTimeout = null;
+  }
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  collapsedSidebarHoverMenu.value = {
+    title,
+    left: rect.right + 6,
+    top: rect.top,
+    children,
+  };
+}
+
+function scheduleHideCollapsedSidebarHoverMenu(): void {
+  if (collapsedSidebarHoverTimeout) clearTimeout(collapsedSidebarHoverTimeout);
+  collapsedSidebarHoverTimeout = setTimeout(() => {
+    collapsedSidebarHoverMenu.value = null;
+    collapsedSidebarHoverTimeout = null;
+  }, 180);
+}
+
+function keepCollapsedSidebarHoverMenuOpen(): void {
+  if (collapsedSidebarHoverTimeout) {
+    clearTimeout(collapsedSidebarHoverTimeout);
+    collapsedSidebarHoverTimeout = null;
+  }
+}
+
+function hideCollapsedSidebarHoverMenu(): void {
+  if (collapsedSidebarHoverTimeout) {
+    clearTimeout(collapsedSidebarHoverTimeout);
+    collapsedSidebarHoverTimeout = null;
+  }
+  collapsedSidebarHoverMenu.value = null;
+}
+
+onBeforeUnmount(hideCollapsedSidebarHoverMenu);
+
+const commerceNavItems = [
+  { label: "Inicio", path: "/inicio", icon: "i-hugeicons:home-02" },
+  { label: "Pedidos", path: "/orders", icon: "i-hugeicons:invoice-01" },
+  { label: "Productos", path: "/products", icon: "i-hugeicons:tag-01" },
+  { label: "Clientes", path: "/customers", icon: "i-hugeicons:user-group" },
+  { label: "Marketing", path: "/marketing", icon: "i-hugeicons:megaphone-01" },
+  { label: "Descuentos", path: "/discounts", icon: "i-hugeicons:discount-tag-01" },
+  { label: "Analíticas", path: "/reports", icon: "i-hugeicons:analytics-01" },
+];
+const selectedSubmenuGroupOverride = ref<string | null>(null);
+const showCollapsedSubmenuPanel = ref(false);
+const isOnlineStoreRoute = computed(
+  () =>
+    route.path === "/dashboard" ||
+    sectionNavItems.value.some(
+      (item) => item.type === "group" && isGroupActive(item.path),
+    ),
+);
+
+const openSubmenuItem = computed(() =>
+  selectedSubmenuGroupOverride.value === "online-store"
+    ? {
+        type: "group" as const,
+        label: "Tienda Online",
+        path: "/online-store",
+        groupId: "online-store",
+      }
+    : sectionNavItems.value.find(
+        (item) => item.type === "group" && isGroupActive(item.path),
+      ),
+);
+const showSubmenuPanel = computed(
+  () =>
+    (!isCollapsed.value ||
+      showCollapsedSubmenuPanel.value ||
+      isOnlineStoreRoute.value) &&
+    Boolean(openGroups.value["online-store"]) &&
+    Boolean(openSubmenuItem.value),
+);
+
+watch(
+  () => route.path,
+  () => {
+    if (isOnlineStoreRoute.value) {
+      openGroups.value["online-store"] = true;
+    } else {
+      closeAllGroups();
+      selectedSubmenuGroupOverride.value = null;
+      showCollapsedSubmenuPanel.value = false;
+    }
+  },
+  { immediate: true },
+);
+
 watch(
   isCollapsed,
   (collapsed) => {
     if (!collapsed) {
+      hideCollapsedSidebarHoverMenu();
+      showCollapsedSubmenuPanel.value = false;
       closeAllGroups();
-      for (const item of navItems.value) {
-        if (item.type === "group" && isGroupActive(item.path)) {
-          openGroups.value[item.groupId] = true;
-          break;
-        }
-      }
+      if (isOnlineStoreRoute.value) openGroups.value["online-store"] = true;
+    } else {
+      showCollapsedSubmenuPanel.value = false;
     }
   },
   { immediate: true },
 );
 
 const activeNavKey = computed(() => {
-  for (const item of navItems.value) {
-    if (item.type === "item" && isActive(item.path)) return item.path;
-    if (item.type === "group" && isGroupActive(item.path)) return item.path;
-  }
+  const selectedCommerceItem = commerceNavItems.find((item) =>
+    isActive(item.path),
+  );
+  if (selectedCommerceItem) return selectedCommerceItem.path;
+  if (isOnlineStoreRoute.value) return "/online-store";
   return null;
 });
 
@@ -513,10 +804,38 @@ const {
 </script>
 
 <template>
-  <div class="studio-sidebar-shell admin-sidebar-height relative flex shrink-0">
+  <Teleport to="body">
+    <div
+      v-if="isCollapsed && collapsedSidebarHoverMenu"
+      class="fixed z-[100] w-48 overflow-hidden rounded-md border border-solid border-sidebar-border bg-background text-foreground shadow-xl"
+      :style="collapsedSidebarHoverMenuStyle"
+      @mouseenter="keepCollapsedSidebarHoverMenuOpen"
+      @mouseleave="scheduleHideCollapsedSidebarHoverMenu"
+    >
+      <div
+        class="flex h-10 items-center border-b border-sidebar-border/70 bg-sidebar-accent/20 px-4 text-sm font-semibold text-foreground"
+      >
+        {{ collapsedSidebarHoverMenu.title }}
+      </div>
+      <FlickeringNavItem
+        v-for="child in collapsedSidebarHoverMenu.children"
+        :key="child.path"
+        :active="isActive(child.path.split('?')[0])"
+        :show-grid="false"
+        class="h-9! min-h-9! px-4!"
+        @click="selectOnlineStoreChild(child.path)"
+      >
+        <span class="truncate">{{ child.label }}</span>
+      </FlickeringNavItem>
+    </div>
+  </Teleport>
+
+    <div
+      class="studio-sidebar-shell"
+      :class="showSubmenuPanel && 'mr-1.5'"
+    >
     <aside
       :class="[
-        sidebarWidth,
         'studio-sidebar admin-sidebar-height relative z-20 flex shrink-0 flex-col bg-sidebar py-4 text-sidebar-foreground',
         shouldAnimateSidebarWidth
           ? 'transition-[width] duration-200 ease-in-out'
@@ -525,7 +844,11 @@ const {
           shouldAnimateSidebarWidth &&
           'studio-sidebar--animating',
       ]"
-      style="view-transition-name: none"
+      :style="{
+        viewTransitionName: 'none',
+        width: isCollapsed ? '3rem' : '15rem',
+        minWidth: isCollapsed ? '3rem' : '15rem',
+      }"
     >
       <SidebarLogo
         :collapsed="isCollapsed"
@@ -536,7 +859,7 @@ const {
         ref="sidebarNavRef"
         :class="[
           'sidebar-nav relative flex min-h-0 flex-1 flex-col overflow-y-auto py-4',
-          isCollapsed ? 'justify-center space-y-1' : 'justify-start gap-1',
+          'justify-start gap-1',
         ]"
         @scroll="!isSidebarAnimating && updateSidebarNavIndicator()"
         @mouseleave="onSidebarNavLeave"
@@ -548,14 +871,80 @@ const {
           :animated="sidebarNavIndicatorAnimated"
         />
 
-        <template v-for="item in navItems" :key="item.label">
+        <div
+          class="flex h-6 shrink-0 items-end px-4 pb-1 pt-2 text-[10px] leading-3 font-medium uppercase tracking-wider text-muted-foreground/50"
+          :aria-hidden="isCollapsed ? 'true' : undefined"
+        >
+          <span :class="isCollapsed && 'invisible'">Main</span>
+        </div>
+
+        <SidebarNavItem
+          v-for="item in commerceNavItems"
+          :key="item.path"
+          :label="item.label"
+          :path="item.path"
+          :icon="item.icon"
+          :active="isActive(item.path)"
+          :collapsed="isCollapsed"
+          :indicator-id="item.path"
+          @mouseenter="showCollapsedSidebarHoverMenu(item.label, $event)"
+          @mouseleave="scheduleHideCollapsedSidebarHoverMenu"
+          @click="hideCollapsedSidebarHoverMenu"
+          @navigate="navigateTo"
+          @register-indicator="registerSidebarNavButton"
+          @indicator-enter="onSidebarNavEnter"
+        />
+
+        <div
+          class="relative flex h-9 shrink-0 items-end px-4 pb-1 pt-5 text-[10px] leading-3 font-medium uppercase tracking-wider text-muted-foreground/50"
+          :aria-hidden="isCollapsed ? 'true' : undefined"
+        >
+          <span :class="isCollapsed && 'invisible'">Sales Channels</span>
+          <span
+            v-if="isCollapsed"
+            class="absolute inset-x-4 top-1/2 -translate-y-1/2 border-t border-sidebar-foreground/15"
+            aria-hidden="true"
+          />
+        </div>
+
+        <SidebarNavGroup
+          label="Tienda Online"
+          :icon="studioIcons.store"
+          group-id="online-store"
+          :open="Boolean(openGroups['online-store'])"
+          :active="isOnlineStoreRoute || selectedSubmenuGroupOverride === 'online-store'"
+          :collapsed="isCollapsed"
+          indicator-id="/online-store"
+          inline-children
+          @collapsed-hover="showCollapsedSidebarHoverMenu('Tienda Online', $event, onlineStoreChildren)"
+          @collapsed-leave="scheduleHideCollapsedSidebarHoverMenu"
+          @expand="expandSidebarForGroup"
+          @toggle="toggleSidebarGroup"
+          @register-indicator="registerSidebarNavButton"
+          @indicator-enter="onSidebarNavEnter"
+        >
+          <template #children>
+            <FlickeringNavItem
+              v-for="(child, index) in onlineStoreChildren"
+              :key="child.path"
+              :active="isActive(child.path.split('?')[0]) || (selectedSubmenuGroupOverride === 'online-store' && index === 0 && !isOnlineStoreRoute)"
+              class="h-10! min-h-10! !py-2 !pl-10"
+              @click="selectOnlineStoreChild(child.path)"
+            >
+              <span class="min-w-0 truncate">{{ child.label }}</span>
+            </FlickeringNavItem>
+          </template>
+        </SidebarNavGroup>
+
+        <div class="hidden">
+        <template v-for="item in sectionNavItems" :key="item.label">
           <SidebarNavItem
             v-if="item.type === 'item'"
             :label="item.label"
             :path="item.path"
             :icon="item.icon"
             :active="isActive(item.path)"
-            :collapsed="isCollapsed"
+            :collapsed="isCollapsed && !showCollapsedSubmenuPanel"
             :indicator-id="item.path"
             @navigate="navigateTo"
             @register-indicator="registerSidebarNavButton"
@@ -564,22 +953,21 @@ const {
           <SidebarNavGroup
             v-else
             :label="item.label"
-            :path="item.path"
             :icon="item.icon"
             :group-id="item.groupId"
-            :open="openGroups[item.groupId]"
+            :open="isGroupActive(item.path)"
             :active="isGroupActive(item.path)"
             :collapsed="isCollapsed"
             :indicator-id="item.path"
             :render-children="
-              !(
+              openSubmenuItem?.groupId === item.groupId && !(
                 item.groupId === 'components' &&
                 shouldAnimateSidebarWidth &&
                 isSidebarAnimating
               )
             "
-            @navigate="navigateAndOpenGroup"
-            @toggle="toggleGroup"
+            @expand="expandSidebarForGroup"
+            @toggle="toggleSidebarGroup"
             @hover="handleNavGroupHover"
             @register-indicator="registerSidebarNavButton"
             @indicator-enter="onSidebarNavEnter"
@@ -590,20 +978,18 @@ const {
                 v-if="item.groupId === 'pages'"
                 class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in pageNavChildren"
                   :key="child.label"
-                  variant="ghost"
-                  class="w-full !justify-start px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
-                    isSidebarFilterChildActive(child, '/pages')
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
-                  "
+                  :active="isSidebarFilterChildActive(child, '/pages')"
+                  class="py-4.5"
                   @click="navigateTo(child.path)"
                 >
-                  {{ child.label }}
-                </Button>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
+                    {{ getPageNavCount(child) }}
+                  </span>
+                </FlickeringNavItem>
               </div>
 
               <!-- Layouts -->
@@ -611,20 +997,15 @@ const {
                 v-if="item.groupId === 'layouts'"
                 class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in layoutNavChildren"
                   :key="child.label"
-                  variant="ghost"
-                  class="w-full !justify-start px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
-                    isSidebarFilterChildActive(child, '/layouts')
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
-                  "
+                  :active="isSidebarFilterChildActive(child, '/layouts')"
+                  class="py-4.5"
                   @click="navigateTo(child.path)"
                 >
-                  {{ child.label }}
-                </Button>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                </FlickeringNavItem>
               </div>
 
               <!-- Components -->
@@ -632,28 +1013,35 @@ const {
                 v-if="item.groupId === 'components'"
                 class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in componentsNavChildren"
                   :key="child.path"
-                  variant="ghost"
-                  class="w-full !justify-start px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
+                  :active="
                     isComponentsNavChildActive(
                       child,
                       route.path,
                       route.query.filter,
                       detailAssignmentGroupId,
                     )
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
                   "
+                  class="py-4.5"
                   :title="child.label"
                   @focusin="prewarmSidebarCollection(child)"
                   @mouseenter="prewarmSidebarCollection(child)"
                   @click="navigateTo(child.path)"
                 >
-                  <span class="truncate">{{ child.label }}</span>
-                </Button>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
+                    {{ getComponentNavCount(child) }}
+                  </span>
+                </FlickeringNavItem>
+                <StudioInlineCreateNavRow
+                  v-if="componentGrouping.canUpdateGrouping.value"
+                  :label="t('components.sidebar.newGroup')"
+                  :placeholder="t('components.sidebar.groupName')"
+                  :hint="t('media.sidebar.createHint')"
+                  @create="createSidebarComponentGroup"
+                />
               </div>
 
               <!-- Collections -->
@@ -661,25 +1049,28 @@ const {
                 v-if="item.groupId === 'collections'"
                 class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in collectionsNavChildren"
                   :key="child.path"
-                  variant="ghost"
-                  class="w-full !justify-start gap-2 px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
-                    isCollectionsNavChildActive(child, route.path)
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
-                  "
+                  :active="isCollectionsNavChildActive(child, route.path)"
+                  class="py-4.5"
                   :title="child.label"
                   @click="navigateTo(child.path)"
                 >
-                  <CmsCollectionIconPreview
-                    :value="getCollectionNavIcon(child)"
-                    class="size-3.5 shrink-0"
-                  />
-                  <span class="truncate">{{ child.label }}</span>
-                </Button>
+                  <div class="flex min-w-0 flex-col items-start gap-1">
+                    <span class="min-w-0 truncate">{{ child.label }}</span>
+                    <span class="text-xs text-muted-foreground/60">
+                      {{ formatEntryCount(getCollectionEntryCount(child)) }}
+                    </span>
+                  </div>
+                  <span
+                    v-if="!child.collectionName"
+                    class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
+                    :aria-label="`${collections.length} collections`"
+                  >
+                    {{ collections.length }}
+                  </span>
+                </FlickeringNavItem>
               </div>
 
               <!-- Media -->
@@ -687,26 +1078,33 @@ const {
                 v-if="item.groupId === 'media'"
                 class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in mediaNavChildren"
                   :key="child.path"
-                  variant="ghost"
-                  class="w-full !justify-start px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
+                  :active="
                     isMediaNavChildActive(
                       child,
                       route.path,
                       route.query.filter,
                       route.query.group,
                     )
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
                   "
+                  class="py-4.5"
                   :title="child.label"
                   @click="navigateTo(child.path)"
                 >
-                  <span class="truncate">{{ child.label }}</span>
-                </Button>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
+                    {{ getMediaNavCount(child) }}
+                  </span>
+                </FlickeringNavItem>
+                <StudioInlineCreateNavRow
+                  v-if="mediaGrouping.canUpdateGrouping.value"
+                  :label="t('media.sidebar.newFolder')"
+                  :placeholder="t('media.sidebar.folderName')"
+                  :hint="t('media.sidebar.createHint')"
+                  @create="createSidebarMediaFolder"
+                />
               </div>
 
               <!-- Design — 100% typed via DESIGN_SIDEBAR_CHILDREN -->
@@ -717,24 +1115,20 @@ const {
                   { 'border-b': !isCollapsed },
                 ]"
               >
-                <Button
+                <FlickeringNavItem
                   v-for="child in DESIGN_SIDEBAR_CHILDREN"
                   :key="child.param"
-                  variant="ghost"
-                  class="w-full !justify-start px-3 py-1.5 h-auto text-left transition-colors"
-                  :class="
-                    isDesignChildActive(child.param)
-                      ? '!text-primary'
-                      : '!text-muted-foreground/75 hover:!text-sidebar-foreground'
-                  "
+                  :active="isDesignChildActive(child.param)"
+                  class="py-4.5"
                   @click="navigateTo(`/design?${child.param}`)"
                 >
-                  {{ designNavLabel(child.param) }}
-                </Button>
+                  <span class="min-w-0 truncate">{{ designNavLabel(child.param) }}</span>
+                </FlickeringNavItem>
               </div>
             </template>
           </SidebarNavGroup>
         </template>
+        </div>
       </nav>
 
       <!-- Spacer -->
@@ -816,6 +1210,33 @@ const {
       />
     </aside>
 
+    <div v-show="showSubmenuPanel" class="studio-sidebar-submenu-shell">
+      <StudioRailFrame
+        :title="openSubmenuItem?.label"
+        framed
+        class="h-full"
+      >
+        <nav
+          id="studio-sidebar-submenu-items"
+          class="sidebar-submenu-content min-h-0 flex-1 overflow-y-auto bg-background py-0"
+          :aria-label="openSubmenuItem?.label"
+        >
+          <template v-if="openSubmenuItem?.groupId === 'online-store'">
+            <FlickeringNavItem
+              v-for="(child, index) in onlineStoreChildren"
+              :key="child.path"
+              :active="isActive(child.path.split('?')[0]) || (!isOnlineStoreRoute && index === 0)"
+              class="py-4.5"
+              @click="selectOnlineStoreChild(child.path)"
+            >
+              <span class="min-w-0 truncate">{{ child.label }}</span>
+            </FlickeringNavItem>
+          </template>
+        </nav>
+      </StudioRailFrame>
+    </div>
+    </div>
+
     <SettingsDialog />
     <HistoryDialog v-if="historyDialog.isOpen.value" />
 
@@ -827,7 +1248,6 @@ const {
       :components="builderComponents"
       :is-loading="isLoading"
     />
-  </div>
 </template>
 
 <style scoped>
@@ -835,14 +1255,57 @@ const {
   height: 100vh;
 }
 
+.studio-sidebar-shell {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 0.375rem;
+  height: 100vh;
+  position: relative;
+  z-index: 20;
+}
+
+.studio-sidebar-submenu-shell {
+  height: calc(100vh - 1.25rem);
+  margin-block: 0.625rem;
+}
+
 @supports (height: 100dvh) {
   .admin-sidebar-height {
     height: 100dvh;
+  }
+
+  .studio-sidebar-shell {
+    height: 100dvh;
+  }
+
+  .studio-sidebar-submenu-shell {
+    height: calc(100dvh - 1.25rem);
   }
 }
 
 .studio-sidebar--animating {
   will-change: width;
+}
+
+:deep(.sidebar-submenu-content > div) {
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+:deep(.sidebar-submenu-content .settings-nav-item) {
+  border-radius: 0 !important;
+  color: hsl(var(--muted-foreground) / 0.75);
+}
+
+:deep(.sidebar-submenu-content .settings-nav-item:hover) {
+  color: hsl(var(--sidebar-foreground)) !important;
+}
+
+:deep(.sidebar-submenu-content .settings-nav-item.nav-active) {
+  color: hsl(var(--primary)) !important;
+  box-shadow: inset 2px 0 0 0 hsl(var(--primary)) !important;
 }
 
 :deep(.sidebar-nav-target.nav-border-inactive),

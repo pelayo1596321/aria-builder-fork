@@ -18,7 +18,7 @@ const { t } = useStudioI18n();
   <div
     :class="[
       'flex h-14 shrink-0 items-center ',
-      collapsed ? 'justify-center px-0' : 'mt-4 px-1',
+      collapsed ? 'justify-center px-0' : 'justify-start px-1',
     ]"
   >
     <Button

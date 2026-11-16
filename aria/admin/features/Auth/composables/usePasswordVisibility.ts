@@ -24,7 +24,7 @@ export function usePasswordVisibility(): UsePasswordVisibilityReturn {
   );
 
   const iconClass = computed(() =>
-    isVisible.value ? "i-hugeicons:view-off" : "i-hugeicons:eye",
+    isVisible.value ? "i-lucide:eye-off" : "i-lucide:eye",
   );
 
   function toggle(): void {

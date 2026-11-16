@@ -15,6 +15,30 @@ export const PAGE_FILTERS = [
 
 export type PagesFilter = (typeof PAGE_FILTERS)[number]
 
+export function countPages(pages: readonly Page[]): Record<PagesFilter, number> {
+  let published = 0, draft = 0, scheduled = 0, archived = 0, modified = 0
+  for (const page of pages) {
+    if (page.status === "published") {
+      published++
+      if (page.isModifiedSincePublish) modified++
+    } else if (page.status === "scheduled") {
+      scheduled++
+    } else if (page.status === "archived") {
+      archived++
+    } else {
+      draft++
+    }
+  }
+  return {
+    all: pages.length,
+    published,
+    draft,
+    scheduled,
+    archived,
+    modified,
+  }
+}
+
 const PAGE_FILTER_SET = new Set<string>(PAGE_FILTERS)
 
 export function parsePagesFilter(value: unknown): PagesFilter {
@@ -153,29 +177,9 @@ export function usePagesListState(
     return filteredTree.value.slice(start, start + pageSize)
   })
 
-  const counts = computed<Record<PagesFilter, number>>(() => {
-    let published = 0, draft = 0, scheduled = 0, archived = 0, modified = 0
-    for (const p of pages.value) {
-      if (p.status === "published") {
-        published++
-        if (p.isModifiedSincePublish) modified++
-      } else if (p.status === "scheduled") {
-        scheduled++
-      } else if (p.status === "archived") {
-        archived++
-      } else {
-        draft++
-      }
-    }
-    return {
-      all: pages.value.length,
-      published,
-      draft,
-      scheduled,
-      archived,
-      modified,
-    }
-  })
+  const counts = computed<Record<PagesFilter, number>>(() =>
+    countPages(pages.value),
+  )
 
   const filters = computed(() => [
     { key: "all" as PagesFilter, label: t("pages.filter.all"), count: counts.value.all },

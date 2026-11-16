@@ -10,11 +10,12 @@ defineProps<{
 <template>
   <div
     v-show="visible"
-    class="sliding-nav-indicator pointer-events-none absolute left-0 top-0 z-20 w-0.5 bg-primary"
+    class="sliding-nav-indicator pointer-events-none absolute left-0 top-0 z-20 w-0.5"
     :class="animated && 'sliding-nav-indicator--animated'"
     :style="{
       transform: `translateY(${top}px)`,
       height: `${height}px`,
+      backgroundColor: 'var(--aria-brand-primary)',
     }"
     aria-hidden="true"
   />

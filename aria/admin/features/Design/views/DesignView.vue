@@ -19,14 +19,12 @@ import IconsView from "./IconsView.vue";
 import GlobalStylesView from "./GlobalStylesView.vue";
 import VariableManagerView from "./VariableManagerView.vue";
 import ClassManagerView from "./ClassManagerView.vue";
-import DesignOrganizerRail from "../components/DesignOrganizerRail.vue";
 
 import DesignAssetImportDialog from "../dialogs/DesignAssetImportDialog.vue";
 import { useVariableManagerBootstrap } from "../composables/useVariableManagerBootstrap";
 import { studioIcons } from "@/lib/icons";
 import { PageHeader } from "@/features/Studio/core/components";
 import HeaderActionTooltip from "@/features/Studio/core/components/HeaderActionTooltip.vue";
-import StudioLeftRailReveal from "@/features/Studio/core/components/StudioLeftRailReveal.vue";
 import {
   DESIGN_HEADER_TELEPORT_KEY,
   type DesignHeaderTeleportRefs,
@@ -107,14 +105,7 @@ onBeforeUnmount((): void => {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 gap-1.5 overflow-hidden bg-sidebar">
-    <StudioLeftRailReveal>
-      <DesignOrganizerRail
-        :active-section="currentView"
-        @select-section="setSection"
-      />
-    </StudioLeftRailReveal>
-
+  <div class="flex h-full min-h-0 overflow-hidden bg-sidebar">
     <section
       class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-solid border-border bg-background"
     >

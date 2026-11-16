@@ -25,6 +25,20 @@ const layoutRoutes: RouteRecordRaw[] = isFeatureEnabled("studio.layouts")
       { path: "/layouts/:slug", redirect: { path: "/dashboard" } },
     ];
 
+const emptyCommerceRoutes: RouteRecordRaw[] = [
+  { path: "/inicio", title: "Inicio" },
+  { path: "/orders", title: "Orders" },
+  { path: "/products", title: "Products" },
+  { path: "/customers", title: "Customers" },
+  { path: "/marketing", title: "Marketing" },
+  { path: "/discounts", title: "Discounts" },
+  { path: "/reports", title: "Reports and analytics" },
+].map(({ path, title }) => ({
+  path,
+  component: () => import("./EmptyCommerceView.vue"),
+  meta: { section: "commerce", title },
+}));
+
 export const studioRoutes: RouteRecordRaw[] = [
   // Redirect root to dashboard
   { path: "/", redirect: "/dashboard" },
@@ -40,6 +54,8 @@ export const studioRoutes: RouteRecordRaw[] = [
     component: () => import("./dashboard/DashboardView.vue"),
     meta: { section: "dashboard", title: "Dashboard" },
   },
+
+  ...emptyCommerceRoutes,
 
   {
     path: "/pages",

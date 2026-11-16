@@ -43,7 +43,6 @@ import DeleteMediaDialog from "./dialogs/DeleteMediaDialog.vue";
 import MediaSyncDialog from "./dialogs/MediaSyncDialog.vue";
 import PreviewMediaDialog from "./dialogs/PreviewMediaDialog.vue";
 import RenameMediaDialog from "./dialogs/RenameMediaDialog.vue";
-import MediaOrganizerRail from "./components/MediaOrganizerRail.vue";
 import MediaContextMenuContent from "./components/MediaContextMenuContent.vue";
 import { parseMediaTypeFilter } from "./lib/mediaRouteFilter";
 import {
@@ -53,7 +52,6 @@ import {
   useStudioRouter,
 } from "@/features/Studio/core/composables";
 import SearchOrBulkToolbar from "@/features/Studio/core/components/SearchOrBulkToolbar.vue";
-import StudioLeftRailReveal from "@/features/Studio/core/components/StudioLeftRailReveal.vue";
 import StudioPanelShell from "@/features/Studio/core/components/StudioPanelShell.vue";
 import StudioTableHeader from "@/features/Studio/core/components/StudioTableHeader.vue";
 import StudioTableColGroup from "@/features/Studio/core/components/StudioTableColGroup.vue";
@@ -159,16 +157,6 @@ const organizeState = useMediaOrganizeState({
 });
 const dragState = useStudioOrganizerDragState();
 
-const showOrganizerRail = computed(() => grouping.canReadGrouping.value);
-
-const groupCounts = computed(() => {
-  const counts: Record<string, number> = {};
-  for (const group of grouping.customGroups.value) {
-    counts[group.id] = grouping.getGroupMemberCount(group.id, assets.value);
-  }
-  return counts;
-});
-
 const {
   searchQuery,
   viewMode,
@@ -263,30 +251,6 @@ function handleContextMenuMoveToGroup(
 ): void {
   const ids = resolveBulkTargets(asset.id, selectedIds.value);
   void handleMoveItemsToGroup(ids, groupId);
-}
-
-async function handleCreateGroup(name: string): Promise<void> {
-  await grouping.createCustomGroup(name);
-}
-
-async function handleRenameGroup(groupId: string, name: string): Promise<void> {
-  await grouping.renameCustomGroup(groupId, name);
-}
-
-async function handleDeleteGroup(groupId: string): Promise<void> {
-  const wasActive = organizeState.activeGroupId.value === groupId;
-  await grouping.deleteCustomGroup(groupId);
-  if (wasActive) {
-    organizeState.setActiveGroup(null);
-  }
-}
-
-function handleSelectAll(): void {
-  organizeState.setActiveGroup(null);
-}
-
-function handleSelectGroup(groupId: string): void {
-  organizeState.setActiveGroup(groupId);
 }
 
 function resolveDragSourceElement(event: DragEvent): HTMLElement | null {
@@ -552,26 +516,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <StudioPanelShell variant="rail">
-    <template #rail>
-      <StudioLeftRailReveal v-if="showOrganizerRail">
-        <MediaOrganizerRail
-          :groups="grouping.customGroups.value"
-          :group-counts="groupCounts"
-          :all-count="assets.length"
-          :active-filter="organizeState.activeNavFilter.value"
-          :can-update-grouping="grouping.canUpdateGrouping.value"
-          :on-move-to-group="handleMoveToGroup"
-          :on-move-items-to-group="handleMoveItemsToGroup"
-          @select-all="handleSelectAll"
-          @select-group="handleSelectGroup"
-          @create-group="handleCreateGroup"
-          @rename-group="handleRenameGroup"
-          @delete-group="handleDeleteGroup"
-        />
-      </StudioLeftRailReveal>
-    </template>
-
+  <StudioPanelShell
+    class="isolate min-w-0 flex-1 rounded-md border border-solid border-border bg-background"
+  >
       <header
         class="flex h-[4.75rem] shrink-0 items-center justify-between gap-4 border-b border-dashed border-border bg-background px-5 inset-shadow-xs"
       >

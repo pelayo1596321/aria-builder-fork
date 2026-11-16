@@ -31,7 +31,6 @@ import {
   ExpandableSearchInput,
   FilterIconMenu,
   SkeletonTable,
-  StudioLeftRailReveal,
   StudioPanelShell,
   StudioTableColGroup,
   StudioTableHeader,
@@ -56,7 +55,6 @@ import {
 import {
   ComponentGridCard,
   ComponentsContextMenuContent,
-  ComponentsOrganizerRail,
 } from "./components";
 import {
   getStudioTableColWidthStyle,
@@ -77,7 +75,6 @@ import { isUserComponent } from "./lib/isUserComponent";
 import { useStudioI18n } from "@/i18n";
 import {
   ComponentsRouteFilterSchema,
-  toGroupRouteFilter,
 } from "./lib/componentsRouteFilter";
 import "@/features/Studio/core/styles/organizer-drag-ghost.css";
 
@@ -191,17 +188,6 @@ const listState = useComponentsListState(components, {
 listState.sortBy.value = loadGridSort();
 
 const showOrganizerRail = computed(() => grouping.canReadGrouping.value);
-
-const groupCounts = computed(() => {
-  const counts: Record<string, number> = {};
-  for (const group of grouping.customGroups.value) {
-    counts[group.id] = grouping.getGroupMemberCount(
-      group.id,
-      listState.userComponents.value,
-    );
-  }
-  return counts;
-});
 
 function loadViewMode(): "table" | "grid" {
   if (typeof window === "undefined") {
@@ -522,64 +508,12 @@ async function handleMoveItemsToGroup(
   }
 }
 
-async function handleCreateGroup(name: string): Promise<void> {
-  await grouping.createCustomGroup(name);
-}
-
-async function handleRenameGroup(groupId: string, name: string): Promise<void> {
-  await grouping.renameCustomGroup(groupId, name);
-}
-
-async function handleDeleteGroup(groupId: string): Promise<void> {
-  const wasActive =
-    organizeState.activeFilter.value === toGroupRouteFilter(groupId);
-  await grouping.deleteCustomGroup(groupId);
-  if (wasActive) {
-    organizeState.setActiveFilter("all");
-  }
-}
-
-function handleSelectAll(): void {
-  organizeState.setActiveFilter("all");
-}
-
-function handleSelectGroup(groupId: string): void {
-  organizeState.setActiveFilter(toGroupRouteFilter(groupId));
-}
-
 </script>
 
 <template>
   <StudioPanelShell
-    variant="rail"
-    content-class="bg-background"
+    class="isolate min-w-0 flex-1 rounded-md border border-solid border-border bg-background"
   >
-    <template #rail>
-      <StudioLeftRailReveal v-if="showOrganizerRail">
-        <ComponentsOrganizerRail
-          v-memo="[
-            grouping.customGroups.value,
-            groupCounts,
-            listState.userComponents.value.length,
-            organizeState.activeFilter.value,
-            grouping.canUpdateGrouping.value,
-          ]"
-          :groups="grouping.customGroups.value"
-          :group-counts="groupCounts"
-          :all-count="listState.userComponents.value.length"
-          :active-filter="organizeState.activeFilter.value"
-          :can-update-grouping="grouping.canUpdateGrouping.value"
-          :on-move-to-group="handleMoveToGroup"
-          :on-move-items-to-group="handleMoveItemsToGroup"
-          @select-all="handleSelectAll"
-          @select-group="handleSelectGroup"
-          @create-group="handleCreateGroup"
-          @rename-group="handleRenameGroup"
-          @delete-group="handleDeleteGroup"
-        />
-      </StudioLeftRailReveal>
-    </template>
-
       <header
         class="flex h-[4.75rem] shrink-0 items-center justify-between gap-4 border-b border-dashed border-border bg-background px-5 inset-shadow-xs"
       >

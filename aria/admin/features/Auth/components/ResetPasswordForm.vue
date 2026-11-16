@@ -31,7 +31,7 @@ const success = ref<string | null>(null);
 const isLoading = ref(false);
 const { t } = useStudioI18n();
 
-const { percentWidth, colorClass } = usePasswordStrength(password);
+const { percentWidth, colorClass, colorStyle } = usePasswordStrength(password);
 
 const inputType = computed(() => (showPasswords.value ? "text" : "password"));
 const hasPasswordValue = computed(() => password.value.length > 0);
@@ -40,7 +40,7 @@ const passwordsMatch = computed(
   () => !confirmPassword.value || password.value === confirmPassword.value,
 );
 const eyeIconClass = computed(() =>
-  showPasswords.value ? "i-hugeicons:view-off" : "i-hugeicons:eye",
+  showPasswords.value ? "i-lucide:eye-off" : "i-lucide:eye",
 );
 const buttonText = computed(() =>
   isLoading.value ? t("auth.resetting") : t("auth.resetPassword"),
@@ -153,7 +153,7 @@ async function handleSubmit(): Promise<void> {
         <div
           class="h-full transition-all duration-300 ease-out motion-reduce:transition-none"
           :class="colorClass"
-          :style="{ width: percentWidth }"
+          :style="{ width: percentWidth, ...colorStyle }"
         />
       </div>
     </div>

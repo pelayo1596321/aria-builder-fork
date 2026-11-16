@@ -58,7 +58,7 @@ function triggerButtonClasses(): string {
     "hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/70 data-[state=open]:text-foreground focus-visible:bg-background/70 focus-visible:text-foreground";
 
   if (props.collapsed) {
-    return `${base} flex w-full items-center justify-center py-1.5`;
+    return `${base} flex w-full items-center !justify-center gap-3 px-0 py-1.5`;
   }
   return `${base} ${expandedInteractive} flex items-center w-full !justify-start gap-3 px-2 py-1.5`;
 }
@@ -77,7 +77,7 @@ const popoverContentClass = computed(() =>
 </script>
 
 <template>
-  <div :class="collapsed ? 'pt-2 pb-0' : 'px-2 py-3'">
+  <div :class="collapsed ? 'px-0 py-2' : 'px-2 py-3'">
     <Popover>
       <PopoverTrigger as-child>
         <button :class="triggerButtonClasses()" :disabled="isLoading">

@@ -1,6 +1,13 @@
 export const studioIcons = {
   // Navigation & panels
   dashboard: "i-hugeicons:home-02",
+  store: "i-hugeicons:store-01",
+  orders: "i-hugeicons:invoice-01",
+  products: "i-hugeicons:tag-01",
+  customers: "i-hugeicons:user-group",
+  marketing: "i-hugeicons:megaphone-01",
+  discounts: "i-hugeicons:discount-tag-01",
+  reports: "i-hugeicons:analytics-01",
   pages: "i-hugeicons:align-box-middle-center",
   studio: "i-hugeicons:align-box-middle-center",
   composer: "i-hugeicons:cursor-edit-01",

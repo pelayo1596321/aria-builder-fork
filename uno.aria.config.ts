@@ -2,6 +2,7 @@ import presetIcons from "@unocss/preset-icons";
 import presetTypography from "@unocss/preset-typography";
 import { presetWind3 } from "@unocss/preset-wind3";
 import { icons as hugeicons } from "@iconify-json/hugeicons";
+import { icons as lucide } from "@iconify-json/lucide";
 import transformerDirectives from "@unocss/transformer-directives";
 import transformerVariantGroup from "@unocss/transformer-variant-group";
 import { ICON_PICKER_SAFE_CLASSES } from "./aria/admin/components/ui/icon-picker/icon-picker-options";
@@ -31,6 +32,7 @@ export default {
       mode: "mask", // Force mask mode so icons respond to text color
       collections: {
         hugeicons: () => hugeicons,
+        lucide: () => lucide,
       },
       extraProperties: {
         display: "inline-block",
@@ -432,6 +434,8 @@ export default {
     // Navigation, actions, status, content, editor, design, stage, inspector…
     // =========================================================================
     ...studioIconSafelist,
+    "i-lucide:eye",
+    "i-lucide:eye-off",
     "i-hugeicons:flash",
     "i-hugeicons:zoom-in-area",
     "i-hugeicons:zoom-out-area",

@@ -72,6 +72,8 @@ let cacheEpoch = 0;
 let requestSequence = 0;
 let latestAppliedRequest = 0;
 
+export const sharedMediaAssets = computed(() => cachedAssets.value);
+
 function hasFreshCachedAssets(): boolean {
   return (
     cachedAssets.value.length > 0 &&

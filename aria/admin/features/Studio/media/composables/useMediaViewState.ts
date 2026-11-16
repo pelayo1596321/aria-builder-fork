@@ -162,7 +162,7 @@ function compareMediaAssets(
     : result * multiplier;
 }
 
-function matchesActiveFilter(
+export function matchesActiveFilter(
   asset: MediaAsset,
   activeFilter: MediaViewFilterId,
 ): boolean {
