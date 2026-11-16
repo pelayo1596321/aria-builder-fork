@@ -1168,7 +1168,12 @@ export function createPageLifecycleStorageDomain(
                 FROM aria_page_versions
                 WHERE id = m.id
                   AND version = COALESCE(m.draft_version, m.current_version)
-                LIMIT 1) as description
+                LIMIT 1) as description,
+               (SELECT json_extract(dsl_json, '$.icon')
+                FROM aria_page_versions
+                WHERE id = m.id
+                  AND version = COALESCE(m.draft_version, m.current_version)
+                LIMIT 1) as icon
         FROM aria_page_meta m
         LEFT JOIN aria_page_versions cv
           ON cv.id = m.id AND cv.version = m.current_version
@@ -1203,6 +1208,7 @@ export function createPageLifecycleStorageDomain(
         editor_created_by_avatar_url: string | null;
         featured_image: string | null;
         description: string | null;
+        icon: string | null;
       }>(sql, args);
 
       return rows.map((row) => {
@@ -1232,6 +1238,7 @@ export function createPageLifecycleStorageDomain(
 
         return {
           id: String(row.id),
+          icon: typeof row.icon === "string" ? row.icon : undefined,
           slug: typeof row.slug === "string" ? row.slug : String(row.id),
           title: typeof row.title === "string" ? row.title : String(row.id),
           status:

@@ -36,6 +36,7 @@ const ThumbnailStateSchema = z.object({
 
 const ServerPageSchema = z.object({
   id: z.string(),
+  icon: z.string().optional(),
   title: z.string().optional(),
   slug: z.string().optional(),
   status: z.enum(["draft", "published", "scheduled", "archived"]).optional(),
@@ -94,6 +95,7 @@ interface Layout {
 interface Component {
   readonly id: string;
   readonly name: string;
+  readonly icon?: string;
   readonly description?: string;
   readonly category?: string;
   readonly source?: "custom" | "aria";
@@ -117,6 +119,7 @@ const ServerLayoutSchema = z.object({
 const ServerComponentSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
+  icon: z.string().optional(),
   description: z.string().optional(),
   category: z.string().optional(),
   source: z.enum(["custom", "aria"]).optional(),
@@ -316,6 +319,7 @@ function transformPage(serverPage: unknown): Page {
       : "draft";
   return {
     id: page.id,
+    icon: page.icon,
     title: page.title || "Untitled Page",
     slug: page.slug || page.id,
     status,
@@ -395,6 +399,7 @@ function transformComponent(serverComponent: unknown): Component {
   return {
     id: component.id,
     name: component.name || "Unnamed Component",
+    icon: component.icon,
     description: component.description,
     category: component.category || "custom",
     source,

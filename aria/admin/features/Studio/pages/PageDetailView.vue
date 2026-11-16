@@ -15,6 +15,8 @@ import { actions } from "astro:actions";
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import IconPickerDialog from "@/components/ui/icon-picker/IconPickerDialog.vue";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import {
   Dialog,
   DialogContent,
@@ -121,6 +123,29 @@ const { executeStudioOperation } = useStudioCrudHistory();
 const studioLive = useStudioLive();
 
 const pageSlug = computed(() => route.params.slug as string);
+const isPageIconPickerOpen = ref(false);
+const pageIcon = computed(() => page.value?.icon || "i-lucide:file-text");
+
+async function savePageIcon(icon: string): Promise<void> {
+  icon = icon || "i-lucide:file-text";
+  const current = page.value;
+  if (!current?.version || current.icon === icon) return;
+  try {
+    const full = await fetchRestoreData(current.slug);
+    full.icon = icon;
+    const result = await actions.updateItem({
+      collection: "pages",
+      slug: current.slug,
+      data: full,
+      expectedVersion: current.version,
+    });
+    if (result.error) throw new Error(result.error.message);
+    await refreshPageDetailAfterMutation(current.slug);
+    toast.success("Page icon updated");
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Failed to update page icon");
+  }
+}
 
 watch(
   pages,
@@ -1889,7 +1914,7 @@ function handleDeleteClick() {
         hide-create
       >
         <template #title>
-          <div class="min-w-0">
+          <div class="flex min-w-0 items-center gap-2">
             <Input
               v-if="isEditingTitle"
               ref="titleInputRef"
@@ -2047,6 +2072,7 @@ function handleDeleteClick() {
                 'public'
               "
               :is-saving="isSaving"
+              :page-icon="pageIcon"
               :available-layouts="
                 layouts.map((item) => ({ slug: item.id, name: item.name }))
               "
@@ -2062,6 +2088,7 @@ function handleDeleteClick() {
               @update-layout="handleLayoutChange"
               @update-parent="handleParentChange"
               @update-visibility="handleVisibilityChange"
+              @edit-icon="isPageIconPickerOpen = true"
             />
 
             <div
@@ -2393,6 +2420,14 @@ function handleDeleteClick() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <IconPickerDialog
+      :open="isPageIconPickerOpen"
+      :value="pageIcon"
+      title="Choose page icon"
+      description="Choose an icon to identify this page."
+      @update:open="isPageIconPickerOpen = $event"
+      @select="savePageIcon"
+    />
   </div>
 </template>
 

@@ -98,6 +98,7 @@ async function createComponent(
     const componentData: ComponentDSL = {
       id: uniqueSlug,
       name,
+      icon: "i-lucide:component",
       description,
       category,
       nodes: [],

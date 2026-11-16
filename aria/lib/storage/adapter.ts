@@ -794,6 +794,7 @@ export type CreateStoredPageAccessSessionInput = z.infer<
 
 export type PageInventoryItem = {
   id: string;
+  icon?: string;
   slug: string | null;
   title: string;
   status: "draft" | "published" | "scheduled" | "archived";

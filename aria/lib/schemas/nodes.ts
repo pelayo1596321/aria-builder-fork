@@ -469,6 +469,7 @@ export const PageDSLSchema: z.ZodType<PageDSL> = z
   .object({
     id: z.string().min(1, "Page ID is required"),
     title: z.string().min(1, "Page title is required"),
+    icon: z.string().trim().min(1).optional(),
     slug: z
       .string()
       .regex(
@@ -827,6 +828,7 @@ export const ComponentDSLSchema: z.ZodType<ComponentDSL> = z
   .object({
     id: z.string().min(1, "Component ID is required"),
     name: z.string().min(1, "Component name is required"),
+    icon: z.string().trim().min(1).optional(),
     title: z.string().optional(), // Display title (defaults to name)
     description: z.string().optional(),
     category: z.string().optional(),

@@ -57,6 +57,7 @@ interface ComponentPropertiesPanelPublic {
   isSaving: boolean;
   isLocked: boolean;
   hasUnsavedChanges: boolean;
+  openIconPicker: () => void;
 }
 
 const route = useRoute();

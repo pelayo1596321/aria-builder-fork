@@ -114,6 +114,7 @@ async function createPage(
       id: uniqueSlug,
       slug: uniqueSlug,
       title,
+      icon: "i-lucide:file-text",
       layout,
       parent: parent ?? undefined,
       status: "draft",

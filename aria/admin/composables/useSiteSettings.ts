@@ -82,7 +82,7 @@ function normalizeIconSettings(raw: SiteSettings["icons"]): IconSettings {
   const incoming = raw?.enabledPacks ?? {};
 
   const enabledPacks: IconEnabledPacks = {
-    lucide: incoming.lucide ?? DEFAULT_ICON_SETTINGS.enabledPacks.lucide,
+    lucide: true,
     "coreui-brands":
       incoming["coreui-brands"] ??
       DEFAULT_ICON_SETTINGS.enabledPacks["coreui-brands"],
@@ -526,6 +526,7 @@ export function useSiteSettings(options: SiteSettingsOptions = {}) {
     pack: IconPackKey,
     nextEnabled?: boolean,
   ): Promise<void> {
+    if (pack === "lucide") return;
     const current = iconSettings.value;
     const desired =
       nextEnabled === undefined ? !current.enabledPacks[pack] : nextEnabled;
@@ -557,6 +558,7 @@ export function useSiteSettings(options: SiteSettingsOptions = {}) {
       enabledPacks: {
         ...iconSettings.value.enabledPacks,
         ...(next.enabledPacks ?? {}),
+        lucide: true,
       },
       defaultPack: next.defaultPack ?? iconSettings.value.defaultPack,
     };

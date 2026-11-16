@@ -14,6 +14,7 @@ import { useTableSelection } from "@/features/Studio/core/composables/useTableSe
 import { usePersistentTableState } from "@/features/Studio/core/composables/usePersistentTableState";
 import type { Ref } from "vue";
 import type { PageTreeNode } from "./usePagesListState";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import { formatRelativeTime } from "@/features/Core/utils/formatting";
 import { formatCompactCount } from "@/lib/metrics/format";
 import TrafficSparkline from "@/features/Studio/metrics/components/TrafficSparkline.vue";
@@ -61,21 +62,6 @@ function formatStatus(
     default:
       return t("pages.status.archived");
   }
-}
-
-function getPageRowIcon(page: PageTreeNode["page"]): string {
-  if (page.slug === "index") return studioIcons.security;
-  if (page.systemRole === "not-found") return studioIcons.pageSpecial;
-  if (page.systemRole === "cms-collection") return studioIcons.designLayout;
-  if (page.systemRole === "cms-entry") return studioIcons.designLayout;
-  if (page.parent) return studioIcons.pageChild;
-  return studioIcons.page;
-}
-
-function getPageRowIconClass(page: PageTreeNode["page"]): string {
-  const color =
-    page.slug === "index" ? "text-primary/90" : "text-muted-foreground/40";
-  return `${getPageRowIcon(page)} size-4.5 ${color}`;
 }
 
 export interface UsePagesTableOptions {
@@ -165,8 +151,9 @@ export function usePagesTable(options: UsePagesTableOptions) {
               class: `size-5 rounded shrink-0 flex items-center justify-center ${node.page.slug === "index" ? "bg-transparent" : "bg-transparent"}`,
             },
             [
-              h("span", {
-                class: getPageRowIconClass(node.page),
+              h(CmsCollectionIconPreview, {
+                value: node.page.icon || "i-lucide:file-text",
+                class: "size-4.5 text-muted-foreground/60",
               }),
             ],
           ),

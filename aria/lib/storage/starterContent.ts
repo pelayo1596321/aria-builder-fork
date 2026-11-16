@@ -543,7 +543,7 @@ export function buildStarterSiteSettings(): Pick<
     utilityEngine: "custom",
     icons: {
       enabledPacks: {
-        lucide: false,
+        lucide: true,
         "coreui-brands": false,
       },
     },

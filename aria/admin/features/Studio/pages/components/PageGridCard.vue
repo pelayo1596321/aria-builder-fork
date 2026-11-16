@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { studioIcons } from "@/lib/icons";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import PageActionsCell from "./PageActionsCell.vue";
 import PagePreviewFrame from "@/features/Studio/pages/components/PagePreviewFrame.vue";
 import type { Page } from "@/composables/useBuilderData";
@@ -411,6 +412,10 @@ const previewActions = computed(() => {
       <!-- Normal mode -->
       <template v-else>
         <h2 class="m-0 min-w-0 truncate text-sm font-medium capitalize text-foreground">
+          <CmsCollectionIconPreview
+            :value="page.icon || 'i-lucide:file-text'"
+            class="mr-1 inline-block size-4 align-[-2px] text-muted-foreground"
+          />
           {{ page.title }}
         </h2>
 

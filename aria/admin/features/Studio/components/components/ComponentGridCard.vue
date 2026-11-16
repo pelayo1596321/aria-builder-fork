@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { studioIcons } from "@/lib/icons";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import type { Component } from "@/composables/useBuilderData";
 import { formatRelativeTime } from "@/features/Core/utils/formatting";
 import { isComponentThumbnailQueued } from "../composables/componentThumbnailBackgroundQueue";
@@ -295,6 +296,10 @@ const previewActions = computed(
 
         <template v-else>
           <h2 class="m-0 min-w-0 truncate text-sm font-medium capitalize text-foreground">
+            <CmsCollectionIconPreview
+              :value="component.icon || 'i-lucide:component'"
+              class="mr-1 inline-block size-4 align-[-2px] text-muted-foreground"
+            />
             {{ component.name || component.id }}
           </h2>
 

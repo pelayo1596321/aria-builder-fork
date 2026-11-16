@@ -170,6 +170,7 @@ function packDescription(packId: IconPackKey, fallback: string): string {
                     </Tooltip>
                   </TooltipProvider>
                   <Switch
+                    v-if="pack.id !== 'lucide'"
                     :model-value="isIconPackEnabled(pack.id)"
                     :disabled="isSaving"
                     :aria-label="

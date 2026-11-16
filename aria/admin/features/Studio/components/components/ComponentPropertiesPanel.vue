@@ -5,6 +5,8 @@ import { actions } from "astro:actions";
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import IconPickerDialog from "@/components/ui/icon-picker/IconPickerDialog.vue";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,6 +91,7 @@ const isLoadingCode = ref(false);
 const isLoadingUsage = ref(false);
 
 const componentData = ref<ComponentDSL | null>(null);
+const isIconPickerOpen = ref(false);
 const codeOutput = ref("");
 const componentUsages = ref<ComponentUsageItem[]>([]);
 const savedDraftSnapshot = ref("");
@@ -96,6 +99,7 @@ const loadedCodeFor = ref<string | null>(null);
 const loadedUsageFor = ref<string | null>(null);
 
 const draftName = ref("");
+const draftIcon = ref("i-lucide:component");
 const draftDescription = ref("");
 const draftCategory = ref("");
 const draftGroupId = ref("");
@@ -205,6 +209,7 @@ function normalizedBindingSnapshot() {
 function buildDraftSnapshot(): string {
   return JSON.stringify({
     name: draftName.value.trim(),
+    icon: draftIcon.value,
     description: draftDescription.value.trim(),
     category: draftCategory.value.trim(),
     groupId: draftGroupId.value,
@@ -563,6 +568,7 @@ function getCategoryFromGroup(groupId: string): string {
 
 function resetDraftFromComponent(component: ComponentDSL): void {
   draftName.value = component.name || component.id;
+  draftIcon.value = component.icon || "i-lucide:component";
   draftDescription.value = component.description || "";
   draftCategory.value = component.category || "custom";
   draftGroupId.value = resolveComponentGroupId(component);
@@ -571,6 +577,14 @@ function resetDraftFromComponent(component: ComponentDSL): void {
   contentFieldValues.value = initializeContentFieldValues(component);
   contentBindingValues.value = initializeContentBindingValues(component);
   updateSavedDraftSnapshot();
+}
+
+function setDraftIcon(icon: string): void {
+  draftIcon.value = icon || "i-lucide:component";
+}
+
+function openIconPicker(): void {
+  if (!isLocked.value) isIconPickerOpen.value = true;
 }
 
 async function loadComponent(): Promise<void> {
@@ -735,6 +749,7 @@ async function saveChanges(): Promise<void> {
     const parsedUpdatedComponent = ComponentDSLSchema.safeParse({
       ...componentData.value,
       name: draftName.value.trim() || componentData.value.name,
+      icon: draftIcon.value,
       description: draftDescription.value.trim(),
       category:
         getCategoryFromGroup(draftGroupId.value).trim() ||
@@ -832,6 +847,7 @@ defineExpose({
   isSaving,
   isLocked,
   hasUnsavedChanges,
+  openIconPicker,
 });
 
 watch(
@@ -867,6 +883,7 @@ watch(
     updateSavedDraftSnapshot();
   },
 );
+
 </script>
 
 <template>
@@ -952,14 +969,25 @@ watch(
             <div class="space-y-5">
               <section class="grid gap-4 md:grid-cols-2">
                 <div class="space-y-2">
-                  <Label :class="detailLabelClass">
-                    Name
-                  </Label>
-                  <Input
-                    v-model="draftName"
-                    class="h-8 text-xs"
-                    :disabled="isLocked"
-                  />
+                  <Label :class="detailLabelClass">Name</Label>
+                  <div class="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="size-8 shrink-0"
+                      aria-label="Change component icon"
+                      title="Change component icon"
+                      :disabled="isLocked"
+                      @click="isIconPickerOpen = true"
+                    >
+                      <CmsCollectionIconPreview :value="draftIcon" class="size-4" />
+                    </Button>
+                    <Input
+                      v-model="draftName"
+                      class="h-8 text-xs"
+                      :disabled="isLocked"
+                    />
+                  </div>
                 </div>
 
                 <div class="space-y-2">
@@ -1269,5 +1297,13 @@ watch(
         </section>
       </div>
     </div>
+    <IconPickerDialog
+      :open="isIconPickerOpen"
+      :value="draftIcon"
+      title="Choose component icon"
+      description="Choose an icon to identify this component."
+      @update:open="isIconPickerOpen = $event"
+      @select="setDraftIcon"
+    />
   </div>
 </template>

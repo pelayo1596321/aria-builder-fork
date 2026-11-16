@@ -433,7 +433,7 @@ export function mergeSiteSettingsUpdate(
     icons !== undefined
       ? {
           enabledPacks: {
-            lucide: nextIconPacks.lucide ?? currentIconPacks.lucide ?? true,
+            lucide: true,
             "coreui-brands":
               nextIconPacks["coreui-brands"] ??
               currentIconPacks["coreui-brands"] ??

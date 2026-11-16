@@ -16,6 +16,7 @@ import type { InlineRenameReturn } from "@/features/Studio/core/composables/useI
 import { Button } from "@/components/ui/button";
 import { usePersistentTableState } from "@/features/Studio/core/composables/usePersistentTableState";
 import { useStudioI18n } from "@/i18n";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 
 const VISIBILITY_KEY = "aria:components:table-columns";
 const SORTING_KEY = "aria:components:table-sorting";
@@ -129,7 +130,11 @@ export function useComponentsTable(options: UseComponentsTableOptions) {
           ]);
         }
 
-        return h("div", { class: "min-w-0" }, [
+        return h("div", { class: "flex min-w-0 items-center gap-2" }, [
+          h(CmsCollectionIconPreview, {
+            value: component.icon || "i-lucide:component",
+            class: "size-4 shrink-0 text-muted-foreground",
+          }),
           h(
             "span",
             { class: "block truncate text-sm font-medium text-foreground" },

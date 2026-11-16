@@ -395,6 +395,7 @@ export interface PageDSL {
   /** Page metadata */
   id: string;
   title: string;
+  icon?: string;
   slug: string;
   description?: string;
 
@@ -742,6 +743,7 @@ export interface ComponentDSL {
   /** Component metadata */
   id: string;
   name: string;
+  icon?: string;
   title?: string; // Display title (defaults to name)
   description?: string;
   category?: string;

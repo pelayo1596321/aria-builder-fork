@@ -3,6 +3,7 @@ import { nextTick, ref } from "vue";
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import ErrorBanner from "@/features/Studio/core/components/ErrorBanner.vue";
@@ -36,6 +37,7 @@ defineProps<{
   currentParent?: string;
   currentVisibility?: "public" | "private" | "unlisted";
   isSaving?: boolean;
+  pageIcon?: string;
   availableLayouts?: Array<{ slug: string; name: string }>;
   availableParents?: Array<{ slug: string; title: string }>;
   editorName?: string;
@@ -48,6 +50,7 @@ const emit = defineEmits<{
   updateLayout: [layout: string];
   updateParent: [parent: string];
   updateVisibility: [visibility: "public" | "private" | "unlisted"];
+  editIcon: [];
 }>();
 
 const title = defineModel<string>("title", { default: "" });
@@ -124,12 +127,29 @@ const detailLabelClass = "text-sm! text-muted-foreground";
             <Label :class="detailLabelClass">
               {{ t("cms.title") }}
             </Label>
-            <Input
-              v-model="title"
-              class="h-9"
-              :placeholder="t('pages.overview.titlePlaceholder')"
-              :disabled="isSaving"
-            />
+            <div class="flex min-w-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                class="size-9 shrink-0"
+                aria-label="Change page icon"
+                title="Change page icon"
+                :disabled="isSaving"
+                @click="emit('editIcon')"
+              >
+                <CmsCollectionIconPreview
+                  :value="pageIcon || 'i-lucide:file-text'"
+                  class="size-4"
+                />
+              </Button>
+              <Input
+                v-model="title"
+                class="h-9 min-w-0 flex-1"
+                :placeholder="t('pages.overview.titlePlaceholder')"
+                :disabled="isSaving"
+              />
+            </div>
           </div>
 
           <div class="space-y-1.5">

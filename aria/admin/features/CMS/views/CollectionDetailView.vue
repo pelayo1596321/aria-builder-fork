@@ -395,11 +395,6 @@ async function confirmDeleteEntries(): Promise<void> {
             {{ t("collections.title") }}
           </button>
           <span class="text-muted-foreground/50 shrink-0">/</span>
-          <CmsCollectionIconPreview
-            v-if="collection"
-            :value="collectionIconClass"
-            class="size-4 shrink-0 text-muted-foreground"
-          />
           <button
             v-if="activeTab === 'configure'"
             type="button"

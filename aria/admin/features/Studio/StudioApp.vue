@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, watch } from "vue";
+import { toast } from "vue-sonner";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import ErrorBoundary from "./core/components/ErrorBoundary.vue";
 import CreatePageDialog from "./pages/dialogs/CreatePageDialog.vue";
@@ -161,37 +162,51 @@ async function handleComponentCreate(payload: {
   groupId: string | null;
   newGroupName?: string;
 }): Promise<void> {
-  let targetGroupId = payload.groupId;
-  let category: string | undefined;
+  try {
+    let targetGroupId = payload.groupId;
+    let category: string | undefined;
 
-  const trimmedNewGroupName = payload.newGroupName?.trim();
-  if (trimmedNewGroupName) {
-    const createdGroupId =
-      await grouping.createCustomGroup(trimmedNewGroupName);
-    if (!createdGroupId) return;
-    targetGroupId = createdGroupId;
-    category = trimmedNewGroupName;
-  } else if (targetGroupId) {
-    const targetGroup = grouping.customGroups.value.find(
-      (group) => group.id === targetGroupId,
+    const trimmedNewGroupName = payload.newGroupName?.trim();
+    if (trimmedNewGroupName) {
+      const createdGroupId =
+        await grouping.createCustomGroup(trimmedNewGroupName);
+      if (!createdGroupId) return;
+      targetGroupId = createdGroupId;
+      category = trimmedNewGroupName;
+    } else if (targetGroupId) {
+      const targetGroup = grouping.customGroups.value.find(
+        (group) => group.id === targetGroupId,
+      );
+      category = targetGroup?.name;
+    }
+
+    const slug = await createComponentDialog.submitCreateComponent(
+      payload.name,
+      category ? { category } : undefined,
+      studioActions.createComponent,
     );
-    category = targetGroup?.name;
+
+    if (!slug) {
+      toast.error("Could not create the component. Please try again.");
+      return;
+    }
+
+    if (targetGroupId) {
+      try {
+        await grouping.moveComponentToGroup(slug, targetGroupId);
+      } catch {
+        // Group placement is optional; it must not prevent entering the editor.
+        toast.warning("Component created, but could not be added to its group.");
+      }
+    }
+
+    await refreshComponentsNow();
+    studioRouter.startEditing("component", slug);
+  } catch (error) {
+    toast.error(
+      error instanceof Error ? error.message : "Could not create the component.",
+    );
   }
-
-  const slug = await createComponentDialog.submitCreateComponent(
-    payload.name,
-    category ? { category } : undefined,
-    studioActions.createComponent,
-  );
-
-  if (!slug) return;
-
-  if (targetGroupId) {
-    await grouping.moveComponentToGroup(slug, targetGroupId);
-  }
-
-  await refreshComponentsNow();
-  studioRouter.startEditing("component", slug);
 }
 
 onMounted(async () => {

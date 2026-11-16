@@ -673,7 +673,8 @@ export function createDslAssetStorageDomain(
       let sql = `
         SELECT m.id, m.name, m.description, m.category, m.source, m.tier,
                m.is_locked, m.pack_id, m.updated_at, m.current_version,
-               json_extract(v.dsl_json, '$.packVersion') AS pack_version
+               json_extract(v.dsl_json, '$.packVersion') AS pack_version,
+               json_extract(v.dsl_json, '$.icon') AS icon
         FROM aria_component_meta m
         LEFT JOIN aria_component_versions v
           ON v.id = m.id AND v.version = m.current_version
@@ -697,6 +698,7 @@ export function createDslAssetStorageDomain(
         is_locked: number | null;
         pack_id: string | null;
         pack_version: string | null;
+        icon: string | null;
         updated_at: string | null;
         current_version: string;
       }>(sql, args);
@@ -706,6 +708,7 @@ export function createDslAssetStorageDomain(
           ({
             id: String(row.id),
             name: typeof row.name === "string" ? row.name : String(row.id),
+            icon: typeof row.icon === "string" ? row.icon : undefined,
             description:
               typeof row.description === "string" ? row.description : undefined,
             category:

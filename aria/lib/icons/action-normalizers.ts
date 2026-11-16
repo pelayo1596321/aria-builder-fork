@@ -35,7 +35,7 @@ export function normalizeIconSettingsInput(
   }
 
   const enabledPacks: IconEnabledPacks = {
-    lucide: parsed.data.enabledPacks?.lucide ?? false,
+    lucide: true,
     "coreui-brands": parsed.data.enabledPacks?.["coreui-brands"] ?? false,
   };
 
