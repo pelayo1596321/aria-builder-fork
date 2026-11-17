@@ -53,14 +53,14 @@ function displayRole(): string {
 
 function triggerButtonClasses(): string {
   const base =
-    "h-auto rounded-sm text-sm font-normal transition-colors focus-visible:outline-none";
+    "h-10 rounded-sm text-sm font-normal transition-colors focus-visible:outline-none";
   const expandedInteractive =
     "hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/70 data-[state=open]:text-foreground focus-visible:bg-background/70 focus-visible:text-foreground";
 
   if (props.collapsed) {
-    return `${base} flex w-full items-center !justify-center gap-3 px-0 py-1.5`;
+    return `${base} flex w-full items-center !justify-center gap-3 px-0 py-0`;
   }
-  return `${base} ${expandedInteractive} flex items-center w-full !justify-start gap-3 px-2 py-1.5`;
+  return `${base} ${expandedInteractive} flex w-full items-center !justify-start gap-3 px-2 py-0`;
 }
 
 const popoverSide = computed<"top" | "right">(() =>
@@ -77,7 +77,7 @@ const popoverContentClass = computed(() =>
 </script>
 
 <template>
-  <div :class="collapsed ? 'px-0 py-2' : 'px-2 py-3'">
+  <div :class="collapsed ? 'px-0 pt-2 pb-0' : 'px-2 pt-2 pb-0'">
     <Popover>
       <PopoverTrigger as-child>
         <button :class="triggerButtonClasses()" :disabled="isLoading">
@@ -85,7 +85,7 @@ const popoverContentClass = computed(() =>
           <div
             :class="[
               'flex shrink-0 items-center justify-center rounded-sm overflow-hidden border border-border/50 hover:border-solid border-dashed hover:brightness-120 transition-all duration-100 hover:border-border/50',
-              collapsed ? 'size-8.5' : 'aspect-square size-9.5',
+              'size-8.5',
               !user?.avatarUrl ? 'bg-background text-foreground' : '',
             ]"
           >
@@ -113,12 +113,12 @@ const popoverContentClass = computed(() =>
           <!-- Name + role (expanded only) -->
           <div
             v-if="!collapsed"
-            class="grid flex-1 text-left text-sm leading-tight"
+            class="grid flex-1 text-left text-sm leading-4"
           >
             <span class="truncate font-medium capitalize text-foreground">{{
               displayName()
             }}</span>
-            <span class="truncate text-xs text-muted-foreground">{{
+            <span class="truncate text-xs leading-4 text-muted-foreground">{{
               displayRole()
             }}</span>
           </div>

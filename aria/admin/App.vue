@@ -51,6 +51,7 @@ import {
   StageCommandRail,
   useStageWorkspaceBindings,
 } from "./features/Stage";
+import { StageEditingTabSchema } from "./features/Stage/types";
 
 import { useBeacon } from "./features/Beacon";
 import { useBuilderData } from "./composables/useBuilderData";
@@ -692,10 +693,24 @@ watch(
       ) {
         return;
       }
-      appRouter.startEditing({
-        itemType: composerTarget.itemType,
-        itemSlug: composerTarget.itemSlug,
-      });
+      const isAlreadyEditingTarget =
+        appRouter.isEditing.value &&
+        appRouter.itemType.value === composerTarget.itemType &&
+        appRouter.itemSlug.value === composerTarget.itemSlug;
+      if (!isAlreadyEditingTarget) {
+        appRouter.startEditing({
+          itemType: composerTarget.itemType,
+          itemSlug: composerTarget.itemSlug,
+        });
+      }
+      const requestedEditingTab = StageEditingTabSchema.safeParse(
+        typeof query.composerTab === "string"
+          ? query.composerTab
+          : undefined,
+      );
+      if (requestedEditingTab.success) {
+        appRouter.setEditingTab(requestedEditingTab.data);
+      }
       prewarmBuilder();
       const sidebar = useSidebarState();
       sidebar.isCollapsed.value = true;
@@ -769,7 +784,9 @@ useAppInitialization({
 <template>
   <div class="admin-app-shell flex w-screen flex-col bg-sidebar">
     <div class="flex min-h-0 flex-1 w-screen">
-      <StudioSidebar v-if="!isOnboardingRoute" />
+      <div v-if="!isOnboardingRoute" class="admin-sidebar-slot">
+        <StudioSidebar />
+      </div>
 
       <Toaster position="bottom-center" />
 
@@ -881,6 +898,14 @@ useAppInitialization({
 </template>
 
 <style scoped>
+.admin-sidebar-slot {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  position: relative;
+  z-index: 30;
+}
+
 .admin-app-shell {
   height: 100vh;
 }

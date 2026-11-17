@@ -44,6 +44,8 @@ export interface UseStageAppBindingsDeps {
   handleUndo: () => void;
   handleRedo: () => void;
   setShowOutlines: (value: boolean) => void;
+  setShowSelectionSizing: (value: boolean) => void;
+  setShowSelectionToolbar: (value: boolean) => void;
   setWireframeMode: (value: boolean) => void;
   handleCanvasStageReady: () => void;
   handleBackgroundClick: () => void;
@@ -109,6 +111,8 @@ export function useStageAppBindings(
     handleUndo,
     handleRedo,
     setShowOutlines,
+    setShowSelectionSizing,
+    setShowSelectionToolbar,
     setWireframeMode,
     handleCanvasStageReady,
     handleBackgroundClick,
@@ -205,6 +209,10 @@ export function useStageAppBindings(
       isSaving: loadingState.value.isSaving,
       isPublishing: loadingState.value.isPublishing,
       isLoading: isItemTransitioning.value,
+      showOutlines: showOutlines.value,
+      showSelectionSizing: showSelectionSizing.value,
+      showSelectionToolbar: showSelectionToolbar.value,
+      wireframeMode: wireframeMode.value,
     },
   }));
 
@@ -214,6 +222,8 @@ export function useStageAppBindings(
     "background-click": handleBackgroundClick,
     "update:show-outlines": setShowOutlines,
     "update:wireframe-mode": setWireframeMode,
+    "update:show-selection-sizing": setShowSelectionSizing,
+    "update:show-selection-toolbar": setShowSelectionToolbar,
     "stage-ready": handleCanvasStageReady,
     "select-block": handleStageSelectBlock,
     "add-block": handleStageAddBlock,

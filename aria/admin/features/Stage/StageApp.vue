@@ -38,6 +38,10 @@ defineExpose({
         @unpublish="emit('unpublish')"
         @undo="emit('undo')"
         @redo="emit('redo')"
+        @update:show-outlines="emit('update:show-outlines', $event)"
+        @update:show-selection-sizing="emit('update:show-selection-sizing', $event)"
+        @update:show-selection-toolbar="emit('update:show-selection-toolbar', $event)"
+        @update:wireframe-mode="emit('update:wireframe-mode', $event)"
       />
       <div
         ref="canvasAreaRef"

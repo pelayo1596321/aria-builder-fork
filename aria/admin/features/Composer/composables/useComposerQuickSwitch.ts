@@ -24,6 +24,7 @@ export interface UseComposerQuickSwitchOptions {
   currentItemSlug: Ref<string>;
   currentItemType: Ref<EditableItemType | undefined>;
   currentPageTitle: Ref<string | undefined>;
+  currentPageIcon?: Ref<string | undefined>;
   currentLayoutName: Ref<string | undefined>;
   hasUnsavedChanges?: Ref<boolean>;
   ensureSaved?: () => Promise<boolean>;
@@ -111,7 +112,7 @@ export function useComposerQuickSwitch(
           value: resolveQuickSwitchValue("page", page),
           label: page.title,
           meta: page.status === "published" ? undefined : page.status,
-          icon: studioIcons.collections,
+          icon: page.icon || "i-lucide:file-text",
           keywords: [page.title, page.slug].filter(Boolean).join(" "),
         })),
       });
@@ -125,7 +126,7 @@ export function useComposerQuickSwitch(
           value: resolveQuickSwitchValue("component", component),
           label: component.name,
           meta: component.category,
-          icon: studioIcons.component,
+          icon: component.icon || "i-lucide:component",
           keywords: [component.name, component.category, component.id]
             .filter(Boolean)
             .join(" "),
@@ -214,8 +215,18 @@ export function useComposerQuickSwitch(
 
   const editingIcon = computed(() => {
     const itemType = options.currentItemType.value;
-    if (itemType === "page") return studioIcons.pages;
-    if (itemType === "component") return studioIcons.component;
+    if (itemType === "page") {
+      return options.currentPageIcon?.value || "i-lucide:file-text";
+    }
+    if (itemType === "component") {
+      const component = parsedComponents.value.find(
+        (entry) =>
+          resolveQuickSwitchValue("component", entry) === currentValue.value ||
+          entry.slug === currentValue.value ||
+          entry.name === currentValue.value,
+      );
+      return component?.icon || "i-lucide:component";
+    }
     if (itemType === "layout") return studioIcons.layoutPivot;
     return studioIcons.pages;
   });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, watch } from "vue";
 import { toast } from "vue-sonner";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import ErrorBoundary from "./core/components/ErrorBoundary.vue";
@@ -12,7 +12,10 @@ import type { CreatedCollectionResult } from "@/features/CMS/composables/useCrea
 import { setCmsCollectionNavigationPreview } from "@/features/CMS/lib/cmsNavigationPreview";
 import { useBuilderData } from "@/composables/useBuilderData";
 import { useStudioRouter } from "./core/composables";
+import { useStudioSecondaryPanel } from "./core/composables/useStudioSecondaryPanel";
+import { useAgentPanel } from "@/features/Agent/client/composables/useAgentPanel";
 import { useAppearance } from "@/features/Design";
+import { useStudioI18n } from "@/i18n";
 import { CreateComponentDialog } from "@/features/Blocks";
 import { useStudioActions } from "./composer/composables/useStudioActions";
 import SlugChangeRedirectPrompt from "./settings/components/SlugChangeRedirectPrompt.vue";
@@ -24,6 +27,7 @@ import {
   STUDIO_MAIN_CLASS,
   STUDIO_SPLIT_MAIN_CLASS,
 } from "./core/lib/studioPanelShell";
+import StudioRailFrame from "./core/components/StudioRailFrame.vue";
 
 const emit = defineEmits<{
   ready: [];
@@ -40,6 +44,11 @@ const {
   isInitialized,
 } = useBuilderData();
 const studioRouter = useStudioRouter();
+const secondaryPanel = useStudioSecondaryPanel();
+const secondaryPanelTitle = secondaryPanel.title;
+const secondaryPanelVisible = secondaryPanel.visible;
+const agentPanel = useAgentPanel();
+const { t } = useStudioI18n();
 const route = useRoute();
 const router = useRouter();
 const studioActions = useStudioActions();
@@ -71,11 +80,12 @@ const defaultGroupId = computed(() => {
   return userGroup?.id ?? grouping.customGroups.value[0]?.id ?? null;
 });
 
-const usesSplitPanelChrome = computed(() =>
-  ["/components", "/collections", "/design", "/media"].includes(route.path) ||
-  route.path.startsWith("/collections/") ||
-  route.path.startsWith("/components/") ||
-  route.path.startsWith("/pages/"),
+const usesSplitPanelChrome = computed(
+  () =>
+    ["/components", "/collections", "/design", "/media"].includes(route.path) ||
+    route.path.startsWith("/collections/") ||
+    route.path.startsWith("/components/") ||
+    route.path.startsWith("/pages/"),
 );
 
 const studioMainClass = computed(() =>
@@ -129,9 +139,28 @@ function handleCreateCollectionDialogOpen(open: boolean) {
   createCollectionDialog.close();
 }
 
-function handlePageCreated(slug: string) {
+async function handlePageCreated(
+  slug: string,
+  startingPoint: "blank" | "template" | "ai",
+  title: string,
+) {
   createPageDialog.close();
-  studioRouter.navigateTo(`/pages/${slug}`);
+  if (startingPoint === "ai") {
+    agentPanel.open({
+      seed: t("pages.createAiPrompt", { title }),
+      composerMode: "agent",
+      autoSend: true,
+    });
+    await router.push(`/pages/${slug}?composer&composerTab=agent`);
+    return;
+  }
+
+  agentPanel.close();
+  const composerQuery =
+    startingPoint === "template"
+      ? "composer&composerTab=add-elements&templateLibrary=1"
+      : "composer&composerTab=add-elements";
+  await router.push(`/pages/${slug}?${composerQuery}`);
 }
 
 function handleCollectionCreated(collection: CreatedCollectionResult) {
@@ -196,7 +225,9 @@ async function handleComponentCreate(payload: {
         await grouping.moveComponentToGroup(slug, targetGroupId);
       } catch {
         // Group placement is optional; it must not prevent entering the editor.
-        toast.warning("Component created, but could not be added to its group.");
+        toast.warning(
+          "Component created, but could not be added to its group.",
+        );
       }
     }
 
@@ -204,102 +235,123 @@ async function handleComponentCreate(payload: {
     studioRouter.startEditing("component", slug);
   } catch (error) {
     toast.error(
-      error instanceof Error ? error.message : "Could not create the component.",
+      error instanceof Error
+        ? error.message
+        : "Could not create the component.",
     );
   }
 }
 
 onMounted(async () => {
   await nextTick();
+  secondaryPanel.setHostReady(true);
   emit("ready");
 });
+
+onBeforeUnmount(() => secondaryPanel.setHostReady(false));
 </script>
 
 <template>
   <main :class="studioMainClass">
-    <ErrorBoundary>
-      <RouterView v-slot="{ Component }">
-        <div
-          class="studio-route-frame"
-          :class="usesSplitPanelChrome ? 'studio-route-frame--split' : ''"
-        >
-          <Suspense timeout="0">
-            <KeepAlive
-              :include="[
-                'PagesView',
-                'LayoutsView',
-                'ComponentsView',
-                'DashboardView',
-                'MediaView',
-                'CmsWorkspaceView',
-              ]"
+    <div class="studio-workspace-row">
+      <div v-show="secondaryPanelVisible" class="studio-secondary-panel">
+        <StudioRailFrame :title="secondaryPanelTitle" framed class="h-full">
+          <nav
+            id="studio-sidebar-submenu-items"
+            class="sidebar-submenu-content min-h-0 flex-1 overflow-y-auto bg-background py-0"
+            :aria-label="secondaryPanelTitle"
+          />
+        </StudioRailFrame>
+      </div>
+
+      <div class="studio-route-content">
+        <ErrorBoundary>
+          <RouterView v-slot="{ Component }">
+            <div
+              class="studio-route-frame"
+              :class="usesSplitPanelChrome ? 'studio-route-frame--split' : ''"
             >
-              <component :is="Component" />
-            </KeepAlive>
-
-            <template #fallback>
-              <div
-                class="studio-route-fallback"
-                :class="
-                  usesSplitPanelChrome ? 'studio-route-fallback--split' : ''
-                "
-              >
-                <aside
-                  v-if="usesSplitPanelChrome"
-                  class="studio-route-fallback-rail"
+              <Suspense timeout="0">
+                <KeepAlive
+                  :include="[
+                    'PagesView',
+                    'LayoutsView',
+                    'ComponentsView',
+                    'DashboardView',
+                    'MediaView',
+                    'CmsWorkspaceView',
+                  ]"
                 >
-                  <div class="studio-route-fallback-header">
-                    <div class="h-6 w-32 animate-pulse rounded bg-muted/40" />
-                  </div>
-                  <div class="space-y-2 p-3">
-                    <div
-                      v-for="item in 6"
-                      :key="`rail-skeleton-${item}`"
-                      class="h-11 animate-pulse rounded-md bg-muted/25"
-                    />
-                  </div>
-                </aside>
+                  <component :is="Component" />
+                </KeepAlive>
 
-                <section class="studio-route-fallback-panel">
-                  <div class="studio-route-fallback-header">
-                    <div class="min-w-0 flex-1 space-y-2">
-                      <div
-                        class="h-6 w-44 animate-pulse rounded bg-muted/40"
-                      />
-                      <div
-                        class="h-3 w-64 max-w-full animate-pulse rounded bg-muted/25"
-                      />
-                    </div>
-                    <div class="flex shrink-0 gap-2">
-                      <div
-                        v-for="action in 3"
-                        :key="`action-skeleton-${action}`"
-                        class="size-9 animate-pulse rounded-md bg-muted/30"
-                      />
-                    </div>
-                  </div>
+                <template #fallback>
+                  <div
+                    class="studio-route-fallback"
+                    :class="
+                      usesSplitPanelChrome ? 'studio-route-fallback--split' : ''
+                    "
+                  >
+                    <aside
+                      v-if="usesSplitPanelChrome"
+                      class="studio-route-fallback-rail"
+                    >
+                      <div class="studio-route-fallback-header">
+                        <div
+                          class="h-6 w-32 animate-pulse rounded bg-muted/40"
+                        />
+                      </div>
+                      <div class="space-y-2 p-3">
+                        <div
+                          v-for="item in 6"
+                          :key="`rail-skeleton-${item}`"
+                          class="h-11 animate-pulse rounded-md bg-muted/25"
+                        />
+                      </div>
+                    </aside>
 
-                  <div class="min-h-0 flex-1 space-y-3 p-5">
-                    <div class="flex gap-4 border-b border-border/50 pb-3">
-                      <div
-                        v-for="column in 4"
-                        :key="`column-skeleton-${column}`"
-                        class="h-4 flex-1 animate-pulse rounded bg-muted/30"
-                      />
-                    </div>
-                    <div
-                      v-for="row in 7"
-                      :key="`route-row-skeleton-${row}`"
-                      class="h-14 animate-pulse rounded-md bg-muted/20"
-                    />
+                    <section class="studio-route-fallback-panel">
+                      <div class="studio-route-fallback-header">
+                        <div class="min-w-0 flex-1 space-y-2">
+                          <div
+                            class="h-6 w-44 animate-pulse rounded bg-muted/40"
+                          />
+                          <div
+                            class="h-3 w-64 max-w-full animate-pulse rounded bg-muted/25"
+                          />
+                        </div>
+                        <div class="flex shrink-0 gap-2">
+                          <div
+                            v-for="action in 3"
+                            :key="`action-skeleton-${action}`"
+                            class="size-9 animate-pulse rounded-md bg-muted/30"
+                          />
+                        </div>
+                      </div>
+
+                      <div class="min-h-0 flex-1 space-y-3 p-5">
+                        <div class="flex gap-4 border-b border-border/50 pb-3">
+                          <div
+                            v-for="column in 4"
+                            :key="`column-skeleton-${column}`"
+                            class="h-4 flex-1 animate-pulse rounded bg-muted/30"
+                          />
+                        </div>
+                        <div
+                          v-for="row in 7"
+                          :key="`route-row-skeleton-${row}`"
+                          class="h-14 animate-pulse rounded-md bg-muted/20"
+                        />
+                      </div>
+                    </section>
                   </div>
-                </section>
-              </div>
-            </template>
-          </Suspense>
-        </div>
-      </RouterView>
-    </ErrorBoundary>
+                </template>
+              </Suspense>
+            </div>
+          </RouterView>
+        </ErrorBoundary>
+      </div>
+    </div>
 
     <CreatePageDialog
       :open="createPageDialog.isOpen.value"
@@ -331,6 +383,56 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.studio-workspace-row {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  gap: 0.5rem;
+  background: var(--sidebar);
+  overflow: hidden;
+}
+
+.studio-secondary-panel {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio-secondary-panel :deep(.sidebar-submenu-content > div) {
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.studio-secondary-panel :deep(.sidebar-submenu-content .settings-nav-item) {
+  border-radius: 0 !important;
+  color: hsl(var(--muted-foreground) / 0.75);
+}
+
+.studio-secondary-panel
+  :deep(.sidebar-submenu-content .settings-nav-item:hover) {
+  color: hsl(var(--sidebar-foreground)) !important;
+}
+
+.studio-secondary-panel
+  :deep(.sidebar-submenu-content .settings-nav-item.nav-active) {
+  color: hsl(var(--primary)) !important;
+  box-shadow: inset 2px 0 0 0 hsl(var(--primary)) !important;
+}
+
+.studio-route-content {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  background: var(--background);
+  overflow: hidden;
+}
+
 .studio-route-frame {
   display: flex;
   flex: 1 1 0%;
@@ -394,5 +496,4 @@ onMounted(async () => {
   padding: 0 1.25rem;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.02);
 }
-
 </style>

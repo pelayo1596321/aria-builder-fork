@@ -53,8 +53,10 @@ const greeting = computed(() =>
         variant="secondary"
         size="xs"
         :class="[
-          'whitespace-normal text-left',
-          compact ? 'w-full' : 'max-w-full',
+          'min-w-0 !whitespace-normal break-words text-left',
+          compact
+            ? 'h-auto! w-full! shrink! justify-center py-2! text-center'
+            : 'max-w-full',
         ]"
         @click="emit('selectPrompt', prompt)"
       >

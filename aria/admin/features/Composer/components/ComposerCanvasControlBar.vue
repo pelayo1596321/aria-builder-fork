@@ -14,12 +14,13 @@ import {
 } from "@/components/ui/tooltip";
 import { studioIcons } from "@/lib/icons";
 import { useStudioI18n } from "@/i18n";
+import ComposerCanvasOptionsMenu from "./ComposerCanvasOptionsMenu.vue";
 import PanelHeader from "../../Core/components/PanelHeader.vue";
 import StageMarkupPreviewPopover from "../../Stage/components/StageMarkupPreviewPopover.vue";
 import CmsPreviewEntryPicker from "../../CMS/components/CmsPreviewEntryPicker.vue";
 import type { PageDSL } from "../../../../lib/types/nodes";
 import { useComposerCanvasControlBar } from "../composables/useComposerCanvasControlBar";
-import { inject } from "vue";
+import { inject, ref } from "vue";
 import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import type { CmsPreviewEntryContext } from "../../CMS/composables/useCmsPreviewEntryContext";
 
@@ -33,6 +34,10 @@ interface Props {
   isSaving?: boolean;
   isPublishing?: boolean;
   isLoading?: boolean;
+  showOutlines?: boolean;
+  showSelectionSizing?: boolean;
+  showSelectionToolbar?: boolean;
+  wireframeMode?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -45,6 +50,10 @@ const props = withDefaults(defineProps<Props>(), {
   isSaving: false,
   isPublishing: false,
   isLoading: false,
+  showOutlines: false,
+  showSelectionSizing: true,
+  showSelectionToolbar: true,
+  wireframeMode: false,
 });
 const { t } = useStudioI18n();
 
@@ -54,6 +63,10 @@ const emit = defineEmits<{
   unpublish: [];
   undo: [];
   redo: [];
+  "update:show-outlines": [value: boolean];
+  "update:show-selection-sizing": [value: boolean];
+  "update:show-selection-toolbar": [value: boolean];
+  "update:wireframe-mode": [value: boolean];
 }>();
 
 const {
@@ -111,6 +124,16 @@ const cmsPreviewEntryContext = inject<CmsPreviewEntryContext | null>(
   APP_INJECTION_KEYS.cmsPreviewEntryContext,
   null,
 );
+const showLayoutSlotGroups = inject(
+  APP_INJECTION_KEYS.showLayoutSlotGroups,
+  ref(true),
+);
+const activeLayoutSlot = inject(APP_INJECTION_KEYS.activeLayoutSlot, null);
+
+function handleShowSlotGroupsUpdate(value: boolean): void {
+  showLayoutSlotGroups.value = value;
+  if (!value) activeLayoutSlot?.resetToPageScope();
+}
 </script>
 
 <template>
@@ -322,8 +345,24 @@ const cmsPreviewEntryContext = inject<CmsPreviewEntryContext | null>(
           </div>
         </div>
 
-        <!-- Right: save, publish, link -->
+        <!-- Right: canvas options, save, publish, link -->
         <div class="flex min-w-0 items-center gap-0.5 justify-self-end">
+          <ComposerCanvasOptionsMenu
+            :show-outlines="props.showOutlines"
+            :show-selection-sizing="props.showSelectionSizing"
+            :show-selection-toolbar="props.showSelectionToolbar"
+            :wireframe-mode="props.wireframeMode"
+            :is-published="props.currentPage?.status === 'published'"
+            :live-page-href="livePageHref"
+            :show-slot-groups="showLayoutSlotGroups"
+            @update:show-outlines="emit('update:show-outlines', $event)"
+            @update:show-selection-sizing="emit('update:show-selection-sizing', $event)"
+            @update:show-selection-toolbar="emit('update:show-selection-toolbar', $event)"
+            @update:wireframe-mode="emit('update:wireframe-mode', $event)"
+            @update:show-slot-groups="handleShowSlotGroupsUpdate"
+            @unpublish="emit('unpublish')"
+          />
+
           <Tooltip>
             <TooltipTrigger as-child>
               <Button

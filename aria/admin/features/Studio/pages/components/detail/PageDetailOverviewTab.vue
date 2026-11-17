@@ -14,6 +14,10 @@ import PageDetailOverviewStatsGrid from "./PageDetailOverviewStatsGrid.vue";
 import { useStudioI18n } from "@/i18n";
 import { systemRoleOptions } from "../../composables/usePageAccessState";
 import {
+  getLayoutDisplayLabelKey,
+  sortLayoutsForPageSelector,
+} from "../../utils/layoutDisplayLabel";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -59,6 +63,18 @@ const title = defineModel<string>("title", { default: "" });
 const description = defineModel<string>("description", { default: "" });
 const slug = defineModel<string>("slug", { default: "" });
 const { t } = useStudioI18n();
+const layoutDisplayName = (slug: string, fallback: string) => {
+  const labelKey = getLayoutDisplayLabelKey(slug);
+  return labelKey ? t(labelKey) : fallback;
+};
+const orderedLayouts = computed(() =>
+  sortLayoutsForPageSelector(
+    (props.availableLayouts ?? []).map((layout) => ({
+      id: layout.slug,
+      ...layout,
+    })),
+  ),
+);
 
 const currentPageTypeLabel = computed(() => {
   const option = systemRoleOptions.find(
@@ -248,7 +264,7 @@ const detailLabelClass = "text-sm! text-muted-foreground";
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="space-y-1.5">
             <Label :class="detailLabelClass">
-              {{ t("pages.layout") }}
+              {{ t("pages.pageStructure") }}
             </Label>
             <Select
               :model-value="currentLayout || NONE_VALUE"
@@ -265,16 +281,14 @@ const detailLabelClass = "text-sm! text-muted-foreground";
               </SelectTrigger>
               <SelectContent>
                 <SelectItem :value="NONE_VALUE">{{
-                  t("pages.none")
+                  t("pages.layoutOption.none")
                 }}</SelectItem>
                 <SelectItem
-                  v-for="layout in (availableLayouts ?? []).filter(
-                    (item) => item.slug,
-                  )"
+                  v-for="layout in orderedLayouts.filter((item) => item.slug)"
                   :key="layout.slug"
                   :value="layout.slug"
                 >
-                  {{ layout.name }}
+                  {{ layoutDisplayName(layout.slug, layout.name) }}
                 </SelectItem>
               </SelectContent>
             </Select>

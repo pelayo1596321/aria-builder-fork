@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, inject } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import type {
   BuilderNode,
@@ -18,10 +19,17 @@ import {
   useAgentRuntimeStatus,
 } from "../../Agent";
 import ComposerQuickSwitch from "./ComposerQuickSwitch.vue";
-import ComposerCanvasOptionsMenu from "./ComposerCanvasOptionsMenu.vue";
+import ComposerPageSettingsDialog from "./ComposerPageSettingsDialog.vue";
 import ExpandableSearchInput from "@/features/Studio/core/components/ExpandableSearchInput.vue";
 import HeaderActionTooltip from "@/features/Studio/core/components/HeaderActionTooltip.vue";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -31,9 +39,12 @@ import {
 import PanelHeader from "../../Core/components/PanelHeader.vue";
 import { studioIcons } from "@/lib/icons";
 import { useStudioI18n } from "@/i18n";
-import { useComposerSavePublishUiState } from "../composables/useComposerSavePublishUiState";
 
 const editingActiveTab = ref<StageEditingTab>("add-elements");
+const templateLibraryOpen = ref(false);
+const pageSettingsDialogOpen = ref(false);
+const route = useRoute();
+const router = useRouter();
 const { t } = useStudioI18n();
 const quickSwitchRef = ref<InstanceType<typeof ComposerQuickSwitch> | null>(
   null,
@@ -46,13 +57,17 @@ const showLayoutSlotGroups = inject(
   ref(true),
 );
 
-const handleShowSlotGroupsUpdate = (value: boolean): void => {
-  showLayoutSlotGroups.value = value;
-
-  if (!value) {
-    activeLayoutSlot?.resetToPageScope();
-  }
-};
+watch(
+  () => route.query.templateLibrary,
+  (requested) => {
+    if (requested !== "1") return;
+    templateLibraryOpen.value = true;
+    const query = { ...route.query };
+    delete query.templateLibrary;
+    void router.replace({ path: route.path, query });
+  },
+  { immediate: true },
+);
 
 const addElementsToolbarLabel = computed(() => {
   if (
@@ -96,6 +111,7 @@ interface Props {
     id: string;
     title: string;
     slug: string;
+    icon?: string;
     status: "draft" | "published" | "scheduled" | "archived";
     updatedAt?: string | null;
   }>;
@@ -110,6 +126,7 @@ interface Props {
     id?: string;
     slug?: string;
     name: string;
+    icon?: string;
     description?: string;
     category?: string;
     thumbnailUrl?: string;
@@ -172,12 +189,6 @@ const agentWorkingInBackground = computed(
 const agentCompletedSectionsInBackground = computed(() =>
   agentWorkingInBackground.value ? agentRuntime.completedSectionCount.value : 0,
 );
-
-const { isPublished, livePageHref } = useComposerSavePublishUiState({
-  currentItemType: () => props.currentItemType ?? "page",
-  currentItemSlug: () => props.currentItemSlug,
-  currentPage: () => props.currentPage,
-});
 
 const allLayersExpanded = ref(true);
 const layersBusy = ref(false);
@@ -313,6 +324,7 @@ defineExpose({
           :current-item-slug="currentItemSlug"
           :current-item-type="currentItemType"
           :current-page-title="currentPage?.title"
+          :current-page-icon="currentPage?.icon"
           :current-layout-name="currentLayout?.name"
           :has-unsaved-changes="hasUnsavedChanges"
           @select-page="(slug) => emit('select-page', slug)"
@@ -322,21 +334,17 @@ defineExpose({
 
         <template #trailing>
           <HeaderActionTooltip :label="t('composer.options.label')">
-            <ComposerCanvasOptionsMenu
-              :show-outlines="props.showOutlines"
-              :show-selection-sizing="props.showSelectionSizing"
-              :show-selection-toolbar="props.showSelectionToolbar"
-              :wireframe-mode="props.wireframeMode"
-              :is-published="isPublished"
-              :live-page-href="livePageHref"
-              :show-slot-groups="showLayoutSlotGroups"
-              @update:show-outlines="emit('update:show-outlines', $event)"
-              @update:show-selection-sizing="emit('update:show-selection-sizing', $event)"
-              @update:show-selection-toolbar="emit('update:show-selection-toolbar', $event)"
-              @update:wireframe-mode="emit('update:wireframe-mode', $event)"
-              @update:show-slot-groups="handleShowSlotGroupsUpdate"
-              @unpublish="emit('unpublish')"
-            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              class="shrink-0"
+              :aria-label="t('composer.options.label')"
+              :disabled="currentItemType !== 'page' || !currentPage"
+              @click="pageSettingsDialogOpen = true"
+            >
+              <span :class="[studioIcons.settings, 'size-4 shrink-0']" aria-hidden="true" />
+            </Button>
           </HeaderActionTooltip>
         </template>
       </PanelHeader>
@@ -552,7 +560,7 @@ defineExpose({
 
     <!-- Content Area -->
     <div
-      class="relative flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-0 -m-px"
+      class="relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden no-scrollbar py-0 -m-px"
     >
       <!-- LayerPanel always mounted — Beacon + canvas signal listeners -->
       <Transition name="tab-panel">
@@ -585,8 +593,17 @@ defineExpose({
           key="editing-add-elements"
           class="flex flex-col"
         >
+          <Button
+            variant="outline"
+            class="mx-3 mt-3 justify-start gap-2"
+            @click="templateLibraryOpen = true"
+          >
+            <span :class="[studioIcons.layouts, 'size-4 shrink-0']" />
+            {{ t("composer.sidebar.templateLibrary") }}
+          </Button>
           <BlockLibrary
             :view-mode="elementsViewMode"
+            :components="availableComponents"
             @add-element="handleAddElement"
           />
         </div>
@@ -600,9 +617,32 @@ defineExpose({
           ref="agentChatRef"
           key="editing-agent"
           compact
-          class="h-full min-h-0"
+          class="min-h-0 flex-1"
         />
       </Transition>
     </div>
+
+    <Dialog
+      :open="templateLibraryOpen"
+      @update:open="templateLibraryOpen = $event"
+    >
+      <DialogContent class="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{{ t("composer.templates.title") }}</DialogTitle>
+          <DialogDescription>
+            {{ t("composer.templates.empty") }}
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+
+    <ComposerPageSettingsDialog
+      :open="pageSettingsDialogOpen"
+      :page="currentPage ?? null"
+      :layouts="availableLayouts"
+      :pages="availablePages"
+      @update:open="pageSettingsDialogOpen = $event"
+      @page-saved="emit('page-saved', $event)"
+    />
   </aside>
 </template>

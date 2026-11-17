@@ -6,6 +6,7 @@
 
 import {
   ref,
+  computed,
   onMounted,
   onUnmounted,
   inject,
@@ -38,6 +39,8 @@ import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import { toStorableJsonObject } from "../../../../lib/schemas/json";
 import { log } from "@/lib/utils/logger";
 import type { JsonObject } from "../../../../lib/types/nodes";
+import { useStudioI18n } from "@/i18n";
+import LibraryComponentElement from "./LibraryComponentElement.vue";
 
 const ROOT_DROP_ZONE_ID = "__aria-root__" as const;
 
@@ -77,9 +80,6 @@ const SvgElement = defineAsyncComponent(
 const IconElement = defineAsyncComponent(
   () => import("../elements/primitives/IconElement.vue"),
 );
-const ComponentElement = defineAsyncComponent(
-  () => import("../elements/primitives/ComponentElement.vue"),
-);
 const VideoElement = defineAsyncComponent(
   () => import("../elements/primitives/VideoElement.vue"),
 );
@@ -98,9 +98,21 @@ const SectionElement = defineAsyncComponent(
   () => import("../elements/containers/SectionElement.vue"),
 );
 
-const props = defineProps<{
-  viewMode?: "grid" | "list";
-}>();
+interface AvailableComponent {
+  id?: string;
+  slug?: string;
+  name: string;
+  icon?: string;
+}
+
+const props = withDefaults(
+  defineProps<{
+    viewMode?: "grid" | "list";
+    components?: readonly AvailableComponent[];
+  }>(),
+  { components: () => [] },
+);
+const { t } = useStudioI18n();
 
 const emit = defineEmits<{
   addElement: [elementData: AddElementPayload];
@@ -115,18 +127,40 @@ interface LibraryElement {
   id: string;
   type: string;
   component: Component;
+  componentSlug?: string;
+  name?: string;
+  icon?: string;
   createData?: () => JsonObject;
 }
 
 const containerElements = ref<LibraryElement[]>([
   { id: "section", type: "section", component: markRaw(SectionElement) },
   { id: "container", type: "container", component: markRaw(ContainerElement) },
-  {
-    id: "component",
-    type: "component",
-    component: markRaw(ComponentElement),
-  },
 ]);
+
+const componentElements = computed(() =>
+  props.components.flatMap((component) => {
+    const componentSlug = component.id?.trim() || component.slug?.trim();
+    if (!componentSlug) return [];
+
+    return [{
+      id: `component-${componentSlug}`,
+      type: "component",
+      componentSlug,
+      name: component.name,
+      icon: component.icon || "i-lucide:component",
+      component: markRaw(LibraryComponentElement),
+      createData: () =>
+        toStorableJsonObject({
+          type: "Component",
+          props: {},
+          styles: {},
+          children: [],
+          reference: { type: "instance", masterId: componentSlug },
+        }),
+    }];
+  }),
+);
 
 const primitiveElements = ref<LibraryElement[]>([
   { id: "heading", type: "heading", component: markRaw(HeadingElement) },
@@ -182,12 +216,14 @@ const elementRefs = ref<Record<string, LibraryElementExpose>>({});
 function resolveElementPayload(element: LibraryElement): {
   type: string;
   data: JsonObject;
+  componentSlug?: string;
 } {
   const generatedData = element.createData?.();
   if (generatedData) {
     return {
       type: element.type,
       data: { type: element.type, ...generatedData },
+      componentSlug: element.componentSlug,
     };
   }
 
@@ -197,15 +233,23 @@ function resolveElementPayload(element: LibraryElement): {
     return {
       type: elementMeta.type,
       data: { type: elementMeta.type, ...elementData },
+      componentSlug: element.componentSlug,
     };
   }
 
-  return { type: element.type, data: { type: element.type } };
+  return {
+    type: element.type,
+    data: { type: element.type },
+    componentSlug: element.componentSlug,
+  };
 }
 
 function handleDragStart(element: LibraryElement, evt: DragEvent): void {
-  const { type, data } = resolveElementPayload(element);
-  const parsedPayload = LibraryDragPayloadSchema.safeParse(data);
+  const { type, data, componentSlug } = resolveElementPayload(element);
+  const parsedPayload = LibraryDragPayloadSchema.safeParse({
+    ...data,
+    ...(componentSlug ? { componentSlug } : {}),
+  });
 
   if (!parsedPayload.success) {
     log("warn", "[BlockLibrary] Invalid drag payload", {
@@ -302,6 +346,9 @@ function handleCanvasDrop(event: Event): void {
   emit("addElement", {
     type: payload.type,
     data: payload,
+    ...(typeof payload.componentSlug === "string"
+      ? { componentSlug: payload.componentSlug }
+      : {}),
     parentId: zone.id === ROOT_DROP_ZONE_ID ? undefined : zone.id,
     insertionMode: zone.id === ROOT_DROP_ZONE_ID ? "root" : "parent",
     position: insertionIndex,
@@ -326,8 +373,12 @@ function setElementRef(elementId: string, refValue: unknown): void {
 }
 
 function handleAddElement(element: LibraryElement): void {
-  const { type, data } = resolveElementPayload(element);
-  emit("addElement", { type, data });
+  const { type, data, componentSlug } = resolveElementPayload(element);
+  emit("addElement", {
+    type,
+    data,
+    ...(componentSlug ? { componentSlug } : {}),
+  });
 }
 </script>
 
@@ -369,6 +420,47 @@ function handleAddElement(element: LibraryElement): void {
             />
           </div>
         </div>
+      </div>
+
+      <!-- Reusable components are available as content blocks under their own section. -->
+      <div>
+        <div class="mb-2 mt-1 flex items-center justify-between px-1">
+          <span
+            class="text-2xs uppercase font-semibold text-muted-foreground/80 tracking-wider"
+          >
+            {{ t("components.title") }}
+          </span>
+        </div>
+
+        <div
+          v-if="componentElements.length"
+          :class="
+            (props.viewMode || 'grid') === 'grid'
+              ? 'grid grid-cols-2 gap-2'
+              : 'space-y-2'
+          "
+        >
+          <div
+            v-for="element in componentElements"
+            :key="element.id"
+            :data-block-library-id="element.id"
+            draggable="true"
+            class="cursor-move transition-opacity duration-75 hover:opacity-80"
+            @dragstart="handleDragStart(element, $event)"
+            @dragend="handleDragEnd"
+            @click="handleAddElement(element)"
+          >
+            <component
+              :is="element.component"
+              :icon="element.icon"
+              :label="element.name"
+              :view-mode="props.viewMode"
+            />
+          </div>
+        </div>
+        <p v-else class="px-2 py-1 text-xs text-muted-foreground">
+          {{ t("components.picker.emptyLibraryTitle") }}
+        </p>
       </div>
 
       <!-- Primitives Section -->

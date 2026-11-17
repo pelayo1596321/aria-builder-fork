@@ -49,8 +49,12 @@ watch(
   />
   <span
     v-else-if="hydratedSvg"
-    class="block [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
-    v-html="hydratedSvg"
-  />
+    class="relative block"
+  >
+    <span
+      class="absolute inset-0 [&>svg]:block [&>svg]:size-full"
+      v-html="hydratedSvg"
+    />
+  </span>
   <span v-else :class="iconValue" />
 </template>

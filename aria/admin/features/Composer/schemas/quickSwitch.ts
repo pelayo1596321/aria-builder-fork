@@ -42,6 +42,7 @@ export const SelectablePageSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1),
   slug: z.string().trim().min(1),
+  icon: z.string().optional(),
   status: z.enum(["draft", "published", "scheduled", "archived"]),
   updatedAt: z.string().nullable().optional(),
 });
@@ -58,6 +59,7 @@ export const SelectableComponentSchema = z.object({
   id: z.string().trim().min(1).optional(),
   slug: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1),
+  icon: z.string().optional(),
   description: z.string().optional(),
   category: z.string().optional(),
 });

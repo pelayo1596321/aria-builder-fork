@@ -86,6 +86,8 @@ export function useStageShellWorkspaceBindings(
     handleActiveBlocksUpdate,
   } = useStageContentSyncActions({
     currentPage: restDeps.currentPage,
+    currentLayout: restDeps.currentLayout,
+    loadLayoutForPage: restDeps.loadLayoutForPage,
     currentComponent: restDeps.currentComponent,
     lastSavedSnapshot: restDeps.lastSavedSnapshot,
     hasUnsavedChanges: restDeps.hasUnsavedChanges,

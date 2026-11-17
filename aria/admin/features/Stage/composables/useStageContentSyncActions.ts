@@ -3,6 +3,7 @@ import { z } from "zod";
 import type {
   BuilderNode,
   ComponentDSL,
+  LayoutDSL,
   PageDSL,
 } from "../../../../lib/types/nodes";
 import {
@@ -16,6 +17,8 @@ const StageBlocksSchema = z.array(BuilderNodeSchema);
 
 export interface UseStageContentSyncActionsDeps {
   currentPage: Ref<PageDSL | null>;
+  currentLayout: Ref<LayoutDSL | null>;
+  loadLayoutForPage: (slug: string) => Promise<LayoutDSL | null>;
   currentComponent: Ref<ComponentDSL | null>;
   lastSavedSnapshot: Ref<string>;
   hasUnsavedChanges: Ref<boolean>;
@@ -25,7 +28,7 @@ export interface UseStageContentSyncActionsDeps {
 
 export interface UseStageContentSyncActionsReturn {
   handleSidebarComponentSaved: (component: ComponentDSL) => void;
-  handleSidebarPageSaved: (page: PageDSL) => void;
+  handleSidebarPageSaved: (page: PageDSL) => Promise<void>;
   handleActiveBlocksUpdate: (blocks: BuilderNode[]) => void;
 }
 
@@ -34,12 +37,15 @@ export function useStageContentSyncActions(
 ): UseStageContentSyncActionsReturn {
   const {
     currentPage,
+    currentLayout,
+    loadLayoutForPage,
     currentComponent,
     lastSavedSnapshot,
     hasUnsavedChanges,
     pageBlocks,
     createSnapshot,
   } = deps;
+  let pageLayoutSyncGeneration = 0;
 
   const handleSidebarComponentSaved = (component: ComponentDSL): void => {
     const parsedComponent = ComponentDSLSchema.safeParse(component);
@@ -59,7 +65,7 @@ export function useStageContentSyncActions(
     hasUnsavedChanges.value = false;
   };
 
-  const handleSidebarPageSaved = (page: PageDSL): void => {
+  const handleSidebarPageSaved = async (page: PageDSL): Promise<void> => {
     const parsedPage = PageDSLSchema.safeParse(page);
     if (!parsedPage.success) {
       log(
@@ -72,8 +78,35 @@ export function useStageContentSyncActions(
       return;
     }
 
-    currentPage.value = parsedPage.data;
+    const nextPage = parsedPage.data;
+    currentPage.value = nextPage;
+    pageBlocks.value = nextPage.nodes ?? [];
+
+    const syncGeneration = ++pageLayoutSyncGeneration;
+    const nextLayoutSlug = nextPage.layout?.trim();
+    const currentLayoutSlug =
+      currentLayout.value?.slug ?? currentLayout.value?.id;
     hasUnsavedChanges.value = true;
+
+    if (!nextLayoutSlug) {
+      // A page without an assigned layout must stop exposing the previous
+      // layout's slots to Layers and the canvas immediately.
+      currentLayout.value = null;
+    } else if (currentLayoutSlug !== nextLayoutSlug) {
+      // Avoid rendering stale slots while the newly selected layout loads.
+      currentLayout.value = null;
+      try {
+        const nextLayout = await loadLayoutForPage(nextLayoutSlug);
+        if (syncGeneration === pageLayoutSyncGeneration) {
+          currentLayout.value = nextLayout;
+        }
+      } catch (error) {
+        log("warn", "Failed to sync selected page layout in Composer", {
+          slug: nextLayoutSlug,
+          error,
+        });
+      }
+    }
   };
 
   const handleActiveBlocksUpdate = (blocks: BuilderNode[]): void => {

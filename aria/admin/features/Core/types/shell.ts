@@ -12,6 +12,7 @@ export interface SelectableComponent {
   id?: string;
   slug?: string;
   name: string;
+  icon?: string;
   description?: string;
   category?: string;
   source?: "custom" | "aria";
@@ -26,6 +27,7 @@ export interface SelectablePage {
   id: string;
   title: string;
   slug: string;
+  icon?: string;
   status: "draft" | "published" | "scheduled" | "archived";
   updatedAt?: string | null;
 }

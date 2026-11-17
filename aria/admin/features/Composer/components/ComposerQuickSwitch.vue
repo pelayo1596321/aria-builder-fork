@@ -25,6 +25,7 @@ import {
   type QuickSwitchOption,
 } from "../schemas/quickSwitch";
 import { useRouter } from "vue-router";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +35,7 @@ const props = withDefaults(
     currentItemSlug?: string;
     currentItemType?: EditableItemType;
     currentPageTitle?: string;
+    currentPageIcon?: string;
     currentLayoutName?: string;
     hasUnsavedChanges?: boolean;
   }>(),
@@ -77,6 +79,7 @@ const {
   currentItemSlug: toRef(props, "currentItemSlug"),
   currentItemType: toRef(props, "currentItemType"),
   currentPageTitle: toRef(props, "currentPageTitle"),
+  currentPageIcon: toRef(props, "currentPageIcon"),
   currentLayoutName: toRef(props, "currentLayoutName"),
   hasUnsavedChanges: toRef(props, "hasUnsavedChanges"),
   ensureSaved: ensureDraftSaved,
@@ -124,11 +127,10 @@ defineExpose({ open, close });
         class="flex min-w-0 flex-1 py-1.5 items-center gap-1.5 rounded-sm! px-1 -mx-1 text-left transition-colors hover:bg-card disabled:cursor-default cursor-pointer disabled:hover:bg-transparent focus:outline-none focus:ring-0 hover:border-dashed hover:border-border hover:border-solid border border-transparent data-[state=open]:border-border data-[state=open]:bg-card/80 data-[state=open]:border-dashed data-[state=open]:hover:border-dashed"
         :disabled="!hasOptions"
       >
-        <div
-          class="w-4 h-4 rounded-sm flex items-center justify-center shrink-0 bg-transparent text-primary"
-        >
-          <div :class="[editingIcon, 'w-4 h-4 text-muted-foreground']" />
-        </div>
+        <CmsCollectionIconPreview
+          :value="editingIcon"
+          class="size-4 shrink-0 text-muted-foreground"
+        />
         <span
           class="text-xs font-medium text-muted-foreground capitalize truncate min-w-0 tracking-wide flex-1"
           >{{ editingLabel }}</span
@@ -164,11 +166,9 @@ defineExpose({ open, close });
               class="flex items-center gap-2 cursor-pointer"
               @select="selectOption(option)"
             >
-              <div
-                :class="[
-                  option.icon,
-                  'size-3.5 shrink-0 text-muted-foreground',
-                ]"
+              <CmsCollectionIconPreview
+                :value="option.icon"
+                class="size-3.5 shrink-0 text-muted-foreground"
               />
               <span class="flex-1 truncate text-xs">{{ option.label }}</span>
               <span

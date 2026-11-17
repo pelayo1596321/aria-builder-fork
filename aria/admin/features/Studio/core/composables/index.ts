@@ -13,6 +13,7 @@ export type {
   UseRouteQueryDialogConfig,
 } from "./useRouteQueryDialog";
 export { useSidebarState } from "./useSidebarState";
+export { useStudioSecondaryPanel } from "./useStudioSecondaryPanel";
 export { useStudioRouter } from "./useStudioRouter";
 export {
   useTableSelection,

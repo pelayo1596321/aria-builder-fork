@@ -1,4 +1,9 @@
 export const EN_COMPOSER_PAGE_SETTINGS_MESSAGES = {
+  "composer.pageSettings.quickTitle": "Page settings",
+  "composer.pageSettings.quickDescription": "Adjust this page without leaving the Composer.",
+  "composer.pageSettings.quickSave": "Save settings",
+  "composer.pageSettings.quickSaveQueued": "Page settings updated. Save the page to apply your changes.",
+  "composer.pageSettings.quickSaveFailed": "Failed to update page settings",
   "composer.pageSettings.unavailable":
     "Page settings are available when editing a page.",
   "composer.pageSettings.layoutIntro":
@@ -121,6 +126,11 @@ export type ComposerPageSettingsMessageCatalog = Record<
 >;
 
 export const FR_COMPOSER_PAGE_SETTINGS_MESSAGES = {
+  "composer.pageSettings.quickTitle": "Paramètres de la page",
+  "composer.pageSettings.quickDescription": "Modifiez cette page sans quitter le Composer.",
+  "composer.pageSettings.quickSave": "Enregistrer les paramètres",
+  "composer.pageSettings.quickSaveQueued": "Paramètres mis à jour. Enregistrez la page pour appliquer les modifications.",
+  "composer.pageSettings.quickSaveFailed": "Impossible de mettre à jour les paramètres de la page",
   "composer.pageSettings.unavailable":
     "Les paramètres de page sont disponibles lors de la modification d’une page.",
   "composer.pageSettings.layoutIntro":

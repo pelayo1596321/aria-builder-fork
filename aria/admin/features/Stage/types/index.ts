@@ -169,6 +169,10 @@ export interface CanvasControlBarProps {
   isSaving: boolean;
   isPublishing: boolean;
   isLoading: boolean;
+  showOutlines: boolean;
+  showSelectionSizing: boolean;
+  showSelectionToolbar: boolean;
+  wireframeMode: boolean;
 }
 
 export interface StageAppProps {
@@ -207,6 +211,8 @@ export interface StageAppListeners {
   "background-click": () => void;
   "update:show-outlines": (value: boolean) => void;
   "update:wireframe-mode": (value: boolean) => void;
+  "update:show-selection-sizing": (value: boolean) => void;
+  "update:show-selection-toolbar": (value: boolean) => void;
   "stage-ready": () => void;
   "select-block": (selection: StageSelectBlockInput) => void;
   "add-block": (block: BuilderNode, parentId: string | null) => void;
@@ -237,6 +243,8 @@ export interface StageAppEmits {
   "background-click": [];
   "update:show-outlines": [value: boolean];
   "update:wireframe-mode": [value: boolean];
+  "update:show-selection-sizing": [value: boolean];
+  "update:show-selection-toolbar": [value: boolean];
   "stage-ready": [];
   "select-block": [selection: StageSelectBlockInput];
   "add-block": [block: BuilderNode, parentId: string | null];

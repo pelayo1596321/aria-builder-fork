@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useStudioRouter } from "@/features/Studio/core/composables";
+import { useStudioSecondaryPanel } from "../composables/useStudioSecondaryPanel";
 import {
   formatModifierShortcut,
   formatAltShortcut,
@@ -49,14 +50,16 @@ import SidebarLogo from "./SidebarLogo.vue";
 import SidebarNavItem from "./SidebarNavItem.vue";
 import SidebarNavGroup from "./SidebarNavGroup.vue";
 import SidebarUser from "./SidebarUser.vue";
-import StudioRailFrame from "./StudioRailFrame.vue";
 import SlidingNavIndicator from "./SlidingNavIndicator.vue";
 import FlickeringNavItem from "./FlickeringNavItem.vue";
 import StudioInlineCreateNavRow from "./StudioInlineCreateNavRow.vue";
 import { useInjectedPrewarmBuilder } from "@/features/Core/composables/useAppInjectedRuntime";
 import { useComponentGrouping } from "@/features/Studio/components/composables/useComponentGrouping";
 import { useMediaGrouping } from "@/features/Studio/media/composables/useMediaGrouping";
-import { countPages, type PagesFilter } from "@/features/Studio/pages/composables/usePagesListState";
+import {
+  countPages,
+  type PagesFilter,
+} from "@/features/Studio/pages/composables/usePagesListState";
 import {
   loadSharedMediaAssets,
   sharedMediaAssets,
@@ -277,9 +280,11 @@ function getCollectionEntryCount(child: CollectionsNavChild): number {
       0,
     );
   }
-  return collections.value.find(
-    (collection) => collection.name === child.collectionName,
-  )?.itemCount ?? 0;
+  return (
+    collections.value.find(
+      (collection) => collection.name === child.collectionName,
+    )?.itemCount ?? 0
+  );
 }
 
 function formatEntryCount(count: number): string {
@@ -540,11 +545,27 @@ interface SidebarFilterChild {
 
 const pageNavChildren = computed<SidebarFilterChild[]>(() => [
   { label: t("sidebar.allPages"), path: "/pages" },
-  { label: t("sidebar.published"), path: "/pages?filter=published", filter: "published" },
+  {
+    label: t("sidebar.published"),
+    path: "/pages?filter=published",
+    filter: "published",
+  },
   { label: t("sidebar.draft"), path: "/pages?filter=draft", filter: "draft" },
-  { label: t("sidebar.scheduled"), path: "/pages?filter=scheduled", filter: "scheduled" },
-  { label: t("sidebar.archived"), path: "/pages?filter=archived", filter: "archived" },
-  { label: t("sidebar.modified"), path: "/pages?filter=modified", filter: "modified" },
+  {
+    label: t("sidebar.scheduled"),
+    path: "/pages?filter=scheduled",
+    filter: "scheduled",
+  },
+  {
+    label: t("sidebar.archived"),
+    path: "/pages?filter=archived",
+    filter: "archived",
+  },
+  {
+    label: t("sidebar.modified"),
+    path: "/pages?filter=modified",
+    filter: "modified",
+  },
 ]);
 const pageCounts = computed(() => countPages(pages.value));
 
@@ -555,7 +576,11 @@ function getPageNavCount(child: SidebarFilterChild): number {
 const layoutNavChildren = computed<SidebarFilterChild[]>(() => [
   { label: t("sidebar.allLayouts"), path: "/layouts" },
   { label: t("sidebar.used"), path: "/layouts?filter=used", filter: "used" },
-  { label: t("sidebar.unused"), path: "/layouts?filter=unused", filter: "unused" },
+  {
+    label: t("sidebar.unused"),
+    path: "/layouts?filter=unused",
+    filter: "unused",
+  },
 ]);
 
 function isSidebarFilterChildActive(
@@ -653,10 +678,10 @@ const collapsedSidebarHoverMenuStyle = computed(() => {
   const menu = collapsedSidebarHoverMenu.value;
   if (!menu) return {};
 
-  const estimatedHeight = menu.children.length > 0
-    ? 44 + menu.children.length * 36
-    : 40;
-  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  const estimatedHeight =
+    menu.children.length > 0 ? 44 + menu.children.length * 36 : 40;
+  const viewportHeight =
+    typeof window === "undefined" ? 800 : window.innerHeight;
   return {
     left: `${menu.left}px`,
     top: `${Math.max(8, Math.min(menu.top, viewportHeight - estimatedHeight - 8))}px`,
@@ -668,7 +693,8 @@ function showCollapsedSidebarHoverMenu(
   event: MouseEvent,
   children: Array<{ label: string; path: string }> = [],
 ): void {
-  if (!isCollapsed.value || !(event.currentTarget instanceof HTMLElement)) return;
+  if (!isCollapsed.value || !(event.currentTarget instanceof HTMLElement))
+    return;
   if (collapsedSidebarHoverTimeout) {
     clearTimeout(collapsedSidebarHoverTimeout);
     collapsedSidebarHoverTimeout = null;
@@ -714,7 +740,11 @@ const commerceNavItems = [
   { label: "Productos", path: "/products", icon: "i-hugeicons:tag-01" },
   { label: "Clientes", path: "/customers", icon: "i-hugeicons:user-group" },
   { label: "Marketing", path: "/marketing", icon: "i-hugeicons:megaphone-01" },
-  { label: "Descuentos", path: "/discounts", icon: "i-hugeicons:discount-tag-01" },
+  {
+    label: "Descuentos",
+    path: "/discounts",
+    icon: "i-hugeicons:discount-tag-01",
+  },
   { label: "Analíticas", path: "/reports", icon: "i-hugeicons:analytics-01" },
 ];
 const selectedSubmenuGroupOverride = ref<string | null>(null);
@@ -726,6 +756,7 @@ const isOnlineStoreRoute = computed(
       (item) => item.type === "group" && isGroupActive(item.path),
     ),
 );
+const secondaryPanel = useStudioSecondaryPanel();
 
 const openSubmenuItem = computed(() =>
   selectedSubmenuGroupOverride.value === "online-store"
@@ -746,6 +777,14 @@ const showSubmenuPanel = computed(
       isOnlineStoreRoute.value) &&
     Boolean(openSubmenuItem.value),
 );
+
+watch(
+  [() => openSubmenuItem.value?.label, showSubmenuPanel],
+  ([title, visible]) => secondaryPanel.setPanel(title ?? "", visible),
+  { immediate: true },
+);
+
+onBeforeUnmount(() => secondaryPanel.setPanel("", false));
 
 watch(
   () => route.path,
@@ -829,10 +868,14 @@ const {
     </div>
   </Teleport>
 
-    <div
-      class="studio-sidebar-shell"
-      :class="showSubmenuPanel && 'mr-1.5'"
-    >
+  <div
+    class="studio-sidebar-shell"
+    :style="{
+      width: isCollapsed ? '3rem' : '15rem',
+      minWidth: isCollapsed ? '3rem' : '15rem',
+      flex: isCollapsed ? '0 0 3rem' : '0 0 15rem',
+    }"
+  >
     <aside
       :class="[
         'studio-sidebar admin-sidebar-height relative z-20 flex shrink-0 flex-col bg-sidebar py-4 text-sidebar-foreground',
@@ -911,11 +954,20 @@ const {
           :icon="studioIcons.store"
           group-id="online-store"
           :open="Boolean(openGroups['online-store'])"
-          :active="isOnlineStoreRoute || selectedSubmenuGroupOverride === 'online-store'"
+          :active="
+            isOnlineStoreRoute ||
+            selectedSubmenuGroupOverride === 'online-store'
+          "
           :collapsed="isCollapsed"
           indicator-id="/online-store"
           inline-children
-          @collapsed-hover="showCollapsedSidebarHoverMenu('Tienda Online', $event, onlineStoreChildren)"
+          @collapsed-hover="
+            showCollapsedSidebarHoverMenu(
+              'Tienda Online',
+              $event,
+              onlineStoreChildren,
+            )
+          "
           @collapsed-leave="scheduleHideCollapsedSidebarHoverMenu"
           @expand="expandSidebarForGroup"
           @toggle="toggleSidebarGroup"
@@ -926,7 +978,12 @@ const {
             <FlickeringNavItem
               v-for="(child, index) in onlineStoreChildren"
               :key="child.path"
-              :active="isActive(child.path.split('?')[0]) || (selectedSubmenuGroupOverride === 'online-store' && index === 0 && !isOnlineStoreRoute)"
+              :active="
+                isActive(child.path.split('?')[0]) ||
+                (selectedSubmenuGroupOverride === 'online-store' &&
+                  index === 0 &&
+                  !isOnlineStoreRoute)
+              "
               class="h-10! min-h-10! !py-2 !pl-10"
               @click="selectOnlineStoreChild(child.path)"
             >
@@ -936,197 +993,207 @@ const {
         </SidebarNavGroup>
 
         <div class="hidden">
-        <template v-for="item in sectionNavItems" :key="item.label">
-          <SidebarNavItem
-            v-if="item.type === 'item'"
-            :label="item.label"
-            :path="item.path"
-            :icon="item.icon"
-            :active="isActive(item.path)"
-            :collapsed="isCollapsed && !showCollapsedSubmenuPanel"
-            :indicator-id="item.path"
-            @navigate="navigateTo"
-            @register-indicator="registerSidebarNavButton"
-            @indicator-enter="onSidebarNavEnter"
-          />
-          <SidebarNavGroup
-            v-else
-            :label="item.label"
-            :icon="item.icon"
-            :group-id="item.groupId"
-            :open="isGroupActive(item.path)"
-            :active="isGroupActive(item.path)"
-            :collapsed="isCollapsed"
-            :indicator-id="item.path"
-            :render-children="
-              openSubmenuItem?.groupId === item.groupId && !(
-                item.groupId === 'components' &&
-                shouldAnimateSidebarWidth &&
-                isSidebarAnimating
-              )
-            "
-            @expand="expandSidebarForGroup"
-            @toggle="toggleSidebarGroup"
-            @hover="handleNavGroupHover"
-            @register-indicator="registerSidebarNavButton"
-            @indicator-enter="onSidebarNavEnter"
-          >
-            <template #children>
-              <!-- Pages -->
-              <div
-                v-if="item.groupId === 'pages'"
-                class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
-              >
-                <FlickeringNavItem
-                  v-for="child in pageNavChildren"
-                  :key="child.label"
-                  :active="isSidebarFilterChildActive(child, '/pages')"
-                  class="py-4.5"
-                  @click="navigateTo(child.path)"
+          <template v-for="item in sectionNavItems" :key="item.label">
+            <SidebarNavItem
+              v-if="item.type === 'item'"
+              :label="item.label"
+              :path="item.path"
+              :icon="item.icon"
+              :active="isActive(item.path)"
+              :collapsed="isCollapsed && !showCollapsedSubmenuPanel"
+              :indicator-id="item.path"
+              @navigate="navigateTo"
+              @register-indicator="registerSidebarNavButton"
+              @indicator-enter="onSidebarNavEnter"
+            />
+            <SidebarNavGroup
+              v-else
+              :label="item.label"
+              :icon="item.icon"
+              :group-id="item.groupId"
+              :open="isGroupActive(item.path)"
+              :active="isGroupActive(item.path)"
+              :collapsed="isCollapsed"
+              :indicator-id="item.path"
+              :render-children="
+                secondaryPanel.hostReady.value &&
+                openSubmenuItem?.groupId === item.groupId &&
+                !(
+                  item.groupId === 'components' &&
+                  shouldAnimateSidebarWidth &&
+                  isSidebarAnimating
+                )
+              "
+              @expand="expandSidebarForGroup"
+              @toggle="toggleSidebarGroup"
+              @hover="handleNavGroupHover"
+              @register-indicator="registerSidebarNavButton"
+              @indicator-enter="onSidebarNavEnter"
+            >
+              <template #children>
+                <!-- Pages -->
+                <div
+                  v-if="item.groupId === 'pages'"
+                  class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
                 >
-                  <span class="min-w-0 truncate">{{ child.label }}</span>
-                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
-                    {{ getPageNavCount(child) }}
-                  </span>
-                </FlickeringNavItem>
-              </div>
-
-              <!-- Layouts -->
-              <div
-                v-if="item.groupId === 'layouts'"
-                class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
-              >
-                <FlickeringNavItem
-                  v-for="child in layoutNavChildren"
-                  :key="child.label"
-                  :active="isSidebarFilterChildActive(child, '/layouts')"
-                  class="py-4.5"
-                  @click="navigateTo(child.path)"
-                >
-                  <span class="min-w-0 truncate">{{ child.label }}</span>
-                </FlickeringNavItem>
-              </div>
-
-              <!-- Components -->
-              <div
-                v-if="item.groupId === 'components'"
-                class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
-              >
-                <FlickeringNavItem
-                  v-for="child in componentsNavChildren"
-                  :key="child.path"
-                  :active="
-                    isComponentsNavChildActive(
-                      child,
-                      route.path,
-                      route.query.filter,
-                      detailAssignmentGroupId,
-                    )
-                  "
-                  class="py-4.5"
-                  :title="child.label"
-                  @focusin="prewarmSidebarCollection(child)"
-                  @mouseenter="prewarmSidebarCollection(child)"
-                  @click="navigateTo(child.path)"
-                >
-                  <span class="min-w-0 truncate">{{ child.label }}</span>
-                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
-                    {{ getComponentNavCount(child) }}
-                  </span>
-                </FlickeringNavItem>
-                <StudioInlineCreateNavRow
-                  v-if="componentGrouping.canUpdateGrouping.value"
-                  :label="t('components.sidebar.newGroup')"
-                  :placeholder="t('components.sidebar.groupName')"
-                  :hint="t('media.sidebar.createHint')"
-                  @create="createSidebarComponentGroup"
-                />
-              </div>
-
-              <!-- Collections -->
-              <div
-                v-if="item.groupId === 'collections'"
-                class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
-              >
-                <FlickeringNavItem
-                  v-for="child in collectionsNavChildren"
-                  :key="child.path"
-                  :active="isCollectionsNavChildActive(child, route.path)"
-                  class="py-4.5"
-                  :title="child.label"
-                  @click="navigateTo(child.path)"
-                >
-                  <div class="flex min-w-0 flex-col items-start gap-1">
-                    <span class="min-w-0 truncate">{{ child.label }}</span>
-                    <span class="text-xs text-muted-foreground/60">
-                      {{ formatEntryCount(getCollectionEntryCount(child)) }}
-                    </span>
-                  </div>
-                  <span
-                    v-if="!child.collectionName"
-                    class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
-                    :aria-label="`${collections.length} collections`"
+                  <FlickeringNavItem
+                    v-for="child in pageNavChildren"
+                    :key="child.label"
+                    :active="isSidebarFilterChildActive(child, '/pages')"
+                    class="py-4.5"
+                    @click="navigateTo(child.path)"
                   >
-                    {{ collections.length }}
-                  </span>
-                </FlickeringNavItem>
-              </div>
+                    <span class="min-w-0 truncate">{{ child.label }}</span>
+                    <span
+                      class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
+                    >
+                      {{ getPageNavCount(child) }}
+                    </span>
+                  </FlickeringNavItem>
+                </div>
 
-              <!-- Media -->
-              <div
-                v-if="item.groupId === 'media'"
-                class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
-              >
-                <FlickeringNavItem
-                  v-for="child in mediaNavChildren"
-                  :key="child.path"
-                  :active="
-                    isMediaNavChildActive(
-                      child,
-                      route.path,
-                      route.query.filter,
-                      route.query.group,
-                    )
-                  "
-                  class="py-4.5"
-                  :title="child.label"
-                  @click="navigateTo(child.path)"
+                <!-- Layouts -->
+                <div
+                  v-if="item.groupId === 'layouts'"
+                  class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
                 >
-                  <span class="min-w-0 truncate">{{ child.label }}</span>
-                  <span class="shrink-0 text-2xs tabular-nums text-muted-foreground/40">
-                    {{ getMediaNavCount(child) }}
-                  </span>
-                </FlickeringNavItem>
-                <StudioInlineCreateNavRow
-                  v-if="mediaGrouping.canUpdateGrouping.value"
-                  :label="t('media.sidebar.newFolder')"
-                  :placeholder="t('media.sidebar.folderName')"
-                  :hint="t('media.sidebar.createHint')"
-                  @create="createSidebarMediaFolder"
-                />
-              </div>
+                  <FlickeringNavItem
+                    v-for="child in layoutNavChildren"
+                    :key="child.label"
+                    :active="isSidebarFilterChildActive(child, '/layouts')"
+                    class="py-4.5"
+                    @click="navigateTo(child.path)"
+                  >
+                    <span class="min-w-0 truncate">{{ child.label }}</span>
+                  </FlickeringNavItem>
+                </div>
 
-              <!-- Design — 100% typed via DESIGN_SIDEBAR_CHILDREN -->
-              <div
-                v-if="item.groupId === 'design'"
-                :class="[
-                  'ml-5.3 py-2 pb-4 flex flex-col gap-0 border-l border-border border-dashed pl-4',
-                  { 'border-b': !isCollapsed },
-                ]"
-              >
-                <FlickeringNavItem
-                  v-for="child in DESIGN_SIDEBAR_CHILDREN"
-                  :key="child.param"
-                  :active="isDesignChildActive(child.param)"
-                  class="py-4.5"
-                  @click="navigateTo(`/design?${child.param}`)"
+                <!-- Components -->
+                <div
+                  v-if="item.groupId === 'components'"
+                  class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
                 >
-                  <span class="min-w-0 truncate">{{ designNavLabel(child.param) }}</span>
-                </FlickeringNavItem>
-              </div>
-            </template>
-          </SidebarNavGroup>
-        </template>
+                  <FlickeringNavItem
+                    v-for="child in componentsNavChildren"
+                    :key="child.path"
+                    :active="
+                      isComponentsNavChildActive(
+                        child,
+                        route.path,
+                        route.query.filter,
+                        detailAssignmentGroupId,
+                      )
+                    "
+                    class="py-4.5"
+                    :title="child.label"
+                    @focusin="prewarmSidebarCollection(child)"
+                    @mouseenter="prewarmSidebarCollection(child)"
+                    @click="navigateTo(child.path)"
+                  >
+                    <span class="min-w-0 truncate">{{ child.label }}</span>
+                    <span
+                      class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
+                    >
+                      {{ getComponentNavCount(child) }}
+                    </span>
+                  </FlickeringNavItem>
+                  <StudioInlineCreateNavRow
+                    v-if="componentGrouping.canUpdateGrouping.value"
+                    :label="t('components.sidebar.newGroup')"
+                    :placeholder="t('components.sidebar.groupName')"
+                    :hint="t('media.sidebar.createHint')"
+                    @create="createSidebarComponentGroup"
+                  />
+                </div>
+
+                <!-- Collections -->
+                <div
+                  v-if="item.groupId === 'collections'"
+                  class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
+                >
+                  <FlickeringNavItem
+                    v-for="child in collectionsNavChildren"
+                    :key="child.path"
+                    :active="isCollectionsNavChildActive(child, route.path)"
+                    class="py-4.5"
+                    :title="child.label"
+                    @click="navigateTo(child.path)"
+                  >
+                    <div class="flex min-w-0 flex-col items-start gap-1">
+                      <span class="min-w-0 truncate">{{ child.label }}</span>
+                      <span class="text-xs text-muted-foreground/60">
+                        {{ formatEntryCount(getCollectionEntryCount(child)) }}
+                      </span>
+                    </div>
+                    <span
+                      v-if="!child.collectionName"
+                      class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
+                      :aria-label="`${collections.length} collections`"
+                    >
+                      {{ collections.length }}
+                    </span>
+                  </FlickeringNavItem>
+                </div>
+
+                <!-- Media -->
+                <div
+                  v-if="item.groupId === 'media'"
+                  class="ml-5.3 flex flex-col py-2 gap-0 border-l border-border border-dashed pl-4"
+                >
+                  <FlickeringNavItem
+                    v-for="child in mediaNavChildren"
+                    :key="child.path"
+                    :active="
+                      isMediaNavChildActive(
+                        child,
+                        route.path,
+                        route.query.filter,
+                        route.query.group,
+                      )
+                    "
+                    class="py-4.5"
+                    :title="child.label"
+                    @click="navigateTo(child.path)"
+                  >
+                    <span class="min-w-0 truncate">{{ child.label }}</span>
+                    <span
+                      class="shrink-0 text-2xs tabular-nums text-muted-foreground/40"
+                    >
+                      {{ getMediaNavCount(child) }}
+                    </span>
+                  </FlickeringNavItem>
+                  <StudioInlineCreateNavRow
+                    v-if="mediaGrouping.canUpdateGrouping.value"
+                    :label="t('media.sidebar.newFolder')"
+                    :placeholder="t('media.sidebar.folderName')"
+                    :hint="t('media.sidebar.createHint')"
+                    @create="createSidebarMediaFolder"
+                  />
+                </div>
+
+                <!-- Design — 100% typed via DESIGN_SIDEBAR_CHILDREN -->
+                <div
+                  v-if="item.groupId === 'design'"
+                  :class="[
+                    'ml-5.3 py-2 pb-4 flex flex-col gap-0 border-l border-border border-dashed pl-4',
+                    { 'border-b': !isCollapsed },
+                  ]"
+                >
+                  <FlickeringNavItem
+                    v-for="child in DESIGN_SIDEBAR_CHILDREN"
+                    :key="child.param"
+                    :active="isDesignChildActive(child.param)"
+                    class="py-4.5"
+                    @click="navigateTo(`/design?${child.param}`)"
+                  >
+                    <span class="min-w-0 truncate">{{
+                      designNavLabel(child.param)
+                    }}</span>
+                  </FlickeringNavItem>
+                </div>
+              </template>
+            </SidebarNavGroup>
+          </template>
         </div>
       </nav>
 
@@ -1208,45 +1275,19 @@ const {
         @logout="handleLogout"
       />
     </aside>
+  </div>
 
-    <div v-show="showSubmenuPanel" class="studio-sidebar-submenu-shell">
-      <StudioRailFrame
-        :title="openSubmenuItem?.label"
-        framed
-        class="h-full"
-      >
-        <nav
-          id="studio-sidebar-submenu-items"
-          class="sidebar-submenu-content min-h-0 flex-1 overflow-y-auto bg-background py-0"
-          :aria-label="openSubmenuItem?.label"
-        >
-          <template v-if="openSubmenuItem?.groupId === 'online-store'">
-            <FlickeringNavItem
-              v-for="(child, index) in onlineStoreChildren"
-              :key="child.path"
-              :active="isActive(child.path.split('?')[0]) || (!isOnlineStoreRoute && index === 0)"
-              class="py-4.5"
-              @click="selectOnlineStoreChild(child.path)"
-            >
-              <span class="min-w-0 truncate">{{ child.label }}</span>
-            </FlickeringNavItem>
-          </template>
-        </nav>
-      </StudioRailFrame>
-    </div>
-    </div>
+  <SettingsDialog />
+  <HistoryDialog v-if="historyDialog.isOpen.value" />
 
-    <SettingsDialog />
-    <HistoryDialog v-if="historyDialog.isOpen.value" />
-
-    <!-- Command Palette — mounted when search is open -->
-    <StudioCommandPalette
-      v-if="searchDialog.isOpen.value"
-      :pages="pages"
-      :layouts="layouts"
-      :components="builderComponents"
-      :is-loading="isLoading"
-    />
+  <!-- Command Palette — mounted when search is open -->
+  <StudioCommandPalette
+    v-if="searchDialog.isOpen.value"
+    :pages="pages"
+    :layouts="layouts"
+    :components="builderComponents"
+    :is-loading="isLoading"
+  />
 </template>
 
 <style scoped>
@@ -1256,17 +1297,15 @@ const {
 
 .studio-sidebar-shell {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 0 3rem;
   align-items: stretch;
   gap: 0.375rem;
+  width: 3rem;
+  min-width: 3rem;
   height: 100vh;
   position: relative;
   z-index: 20;
-}
-
-.studio-sidebar-submenu-shell {
-  height: calc(100vh - 1.25rem);
-  margin-block: 0.625rem;
+  overflow: visible;
 }
 
 @supports (height: 100dvh) {
@@ -1277,34 +1316,10 @@ const {
   .studio-sidebar-shell {
     height: 100dvh;
   }
-
-  .studio-sidebar-submenu-shell {
-    height: calc(100dvh - 1.25rem);
-  }
 }
 
 .studio-sidebar--animating {
   will-change: width;
-}
-
-:deep(.sidebar-submenu-content > div) {
-  margin: 0 !important;
-  border: 0 !important;
-  padding: 0 !important;
-}
-
-:deep(.sidebar-submenu-content .settings-nav-item) {
-  border-radius: 0 !important;
-  color: hsl(var(--muted-foreground) / 0.75);
-}
-
-:deep(.sidebar-submenu-content .settings-nav-item:hover) {
-  color: hsl(var(--sidebar-foreground)) !important;
-}
-
-:deep(.sidebar-submenu-content .settings-nav-item.nav-active) {
-  color: hsl(var(--primary)) !important;
-  box-shadow: inset 2px 0 0 0 hsl(var(--primary)) !important;
 }
 
 :deep(.sidebar-nav-target.nav-border-inactive),
