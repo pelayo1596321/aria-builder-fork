@@ -326,7 +326,6 @@ const { table, rowSelection } = usePagesTable({
   showVisitsColumn: showTrafficMetrics,
   trafficSparklineForSlug: studioMetrics.sparklineForSlug,
   showTrafficColumn: showTrafficMetrics,
-  pageUsagesById: cmsPageUsagesById,
 });
 
 const selectedSlugs = useSelectedIds(

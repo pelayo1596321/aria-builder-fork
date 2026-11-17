@@ -1623,12 +1623,6 @@ function handleParentChange(newParent: string): void {
   parent.value = newParent;
 }
 
-function handleVisibilityChange(
-  newVisibility: "public" | "private" | "unlisted",
-): void {
-  pageAccessMode.value = newVisibility;
-}
-
 /**
  * Handle cover image update
  * Cover changes remain local until the page's single guarded save.
@@ -2071,6 +2065,7 @@ function handleDeleteClick() {
                 (page?.visibility as 'public' | 'private' | 'unlisted') ??
                 'public'
               "
+              :current-page-type="pageAccessSystemRole"
               :is-saving="isSaving"
               :page-icon="pageIcon"
               :available-layouts="
@@ -2087,7 +2082,7 @@ function handleDeleteClick() {
               @retry-load="composableLoadPage"
               @update-layout="handleLayoutChange"
               @update-parent="handleParentChange"
-              @update-visibility="handleVisibilityChange"
+              @navigate-to-tab="activeTab = $event"
               @edit-icon="isPageIconPickerOpen = true"
             />
 

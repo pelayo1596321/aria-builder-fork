@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBuilderData } from "@/composables/useBuilderData";
 import { useStudioRouter } from "@/features/Studio/core/composables";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import { studioIcons } from "@/lib/icons";
 import { useStudioI18n } from "@/i18n";
 import DashboardFrame from "./DashboardFrame.vue";
@@ -12,9 +13,9 @@ interface StructureRow {
   id: string;
   title: string;
   slug: string;
+  icon: string;
   status: "draft" | "published" | "scheduled" | "archived";
   depth: number;
-  isHome: boolean;
 }
 
 const MAX_ROWS = 10;
@@ -58,9 +59,9 @@ const structureRows = computed<StructureRow[]>(() => {
         id: page.id,
         title: page.title,
         slug: page.slug,
+        icon: page.icon || "i-lucide:file-text",
         status: page.status,
         depth,
-        isHome: page.slug === "index" || page.slug === "home",
       });
       walk(page.slug, depth + 1);
     }
@@ -121,11 +122,9 @@ function openPages(): void {
         @click="openPage(row.slug)"
       >
         <span class="flex min-w-0 items-center gap-2.5">
-          <span
-            :class="[
-              row.isHome ? studioIcons.home : studioIcons.page,
-              'size-3.5 shrink-0 text-primary',
-            ]"
+          <CmsCollectionIconPreview
+            :value="row.icon"
+            class="size-3.5 shrink-0 text-primary"
             aria-hidden="true"
           />
           <span class="truncate text-xs text-foreground">{{ row.title }}</span>

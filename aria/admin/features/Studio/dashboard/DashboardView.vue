@@ -85,7 +85,7 @@ scheduleBackgroundBootWork(
   <StudioPanelShell class="page-card-enter">
     <PageHeader
       :title="siteTitle"
-      class="min-h-[5.5rem] px-5 py-3"
+      class="min-h-[5.5rem] border-b border-dashed border-border px-5 py-3"
       hide-search
       hide-create
     >

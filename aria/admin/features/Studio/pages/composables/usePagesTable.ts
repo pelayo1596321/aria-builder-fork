@@ -18,10 +18,6 @@ import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIco
 import { formatRelativeTime } from "@/features/Core/utils/formatting";
 import { formatCompactCount } from "@/lib/metrics/format";
 import TrafficSparkline from "@/features/Studio/metrics/components/TrafficSparkline.vue";
-import {
-  cmsPageUsageBadgeLabels,
-  type CmsPageUsage,
-} from "../../../../../lib/cms/pageUsage";
 import { useStudioI18n } from "@/i18n";
 
 const VISIBILITY_KEY = "aria:pages:table-columns";
@@ -46,6 +42,22 @@ function formatAccess(
   if (mode === "password") return t("pages.access.password");
   if (mode === "private") return t("pages.access.private");
   return t("pages.access.unlisted");
+}
+
+function formatPageType(
+  role: PageTreeNode["page"]["systemRole"],
+  t: ReturnType<typeof useStudioI18n>["t"],
+): string {
+  switch (role) {
+    case "not-found":
+      return t("pages.type.notFound.label");
+    case "cms-collection":
+      return t("pages.type.collection.label");
+    case "cms-entry":
+      return t("pages.type.entry.label");
+    default:
+      return t("pages.type.standard.label");
+  }
 }
 
 function formatStatus(
@@ -73,7 +85,6 @@ export interface UsePagesTableOptions {
   showVisitsColumn?: Ref<boolean>;
   trafficSparklineForSlug?: (slug: string) => readonly number[];
   showTrafficColumn?: Ref<boolean>;
-  pageUsagesById?: Ref<ReadonlyMap<string, readonly CmsPageUsage[]>>;
 }
 
 export function usePagesTable(options: UsePagesTableOptions) {
@@ -108,7 +119,7 @@ export function usePagesTable(options: UsePagesTableOptions) {
       id: "cover",
       header: t("pages.column.cover"),
       size: 96,
-      meta: { studioTableWidthMode: "fixed" },
+      meta: { studioTableWidthMode: "flex" },
       cell: ({ row }) => {
         const featuredImage = row.original.page.featuredImage;
         return featuredImage?.src
@@ -133,7 +144,7 @@ export function usePagesTable(options: UsePagesTableOptions) {
     }),
     columnHelper.accessor((row) => row.page.title, {
       id: "page",
-      minSize: 280,
+      minSize: 220,
       meta: { studioTableWidthMode: "flex" },
       header: t("pages.column.page"),
       cell: ({ row }) => {
@@ -229,29 +240,15 @@ export function usePagesTable(options: UsePagesTableOptions) {
                       { default: () => t("pages.status.modified") },
                     )
                   : null,
-                ...cmsPageUsageBadgeLabels(
-                  options.pageUsagesById?.value.get(node.page.id),
-                ).map((label) =>
-                  h(
-                    Badge,
-                    {
-                      variant: "outline",
-                      size: "sm",
-                      class:
-                        "ml-1 shrink-0 border-primary/25 bg-primary/8 text-primary",
-                    },
-                    { default: () => label },
-                  ),
-                ),
               ]),
         ]);
       },
     }),
     columnHelper.accessor((row) => row.page.slug, {
       id: "slug",
-      minSize: 240,
-      size: 240,
-      meta: { studioTableWidthMode: "min" },
+      minSize: 175,
+      size: 175,
+      meta: { studioTableWidthMode: "flex" },
       header: t("pages.column.slug"),
       cell: ({ row }) =>
         h(
@@ -263,11 +260,30 @@ export function usePagesTable(options: UsePagesTableOptions) {
           row.original.path,
         ),
     }),
+    columnHelper.accessor((row) => row.page.systemRole ?? "standard", {
+      id: "type",
+      minSize: 145,
+      size: 145,
+      meta: { studioTableWidthMode: "flex" },
+      header: t("pages.type.title"),
+      cell: ({ row }) =>
+        h(
+          Badge,
+          {
+            variant: "outline",
+            size: "sm",
+            class: "border-border/70 text-muted-foreground",
+          },
+          {
+            default: () => formatPageType(row.original.page.systemRole, t),
+          },
+        ),
+    }),
     columnHelper.accessor((row) => row.page.description ?? "", {
       id: "description",
-      minSize: 220,
+      minSize: 180,
       size: 220,
-      meta: { studioTableWidthMode: "min" },
+      meta: { studioTableWidthMode: "flex" },
       header: t("pages.column.description"),
       cell: ({ row }) => {
         const text = row.original.page.description?.trim();
@@ -284,9 +300,9 @@ export function usePagesTable(options: UsePagesTableOptions) {
     }),
     columnHelper.accessor((row) => row.page.layout, {
       id: "layout",
-      minSize: 152,
-      size: 152,
-      meta: { studioTableWidthMode: "min" },
+      minSize: 128,
+      size: 128,
+      meta: { studioTableWidthMode: "flex" },
       header: t("pages.column.layout"),
       cell: ({ row }) => {
         const layoutName =
@@ -305,9 +321,9 @@ export function usePagesTable(options: UsePagesTableOptions) {
     }),
     columnHelper.accessor((row) => row.page.accessMode, {
       id: "access",
-      minSize: 132,
-      size: 132,
-      meta: { studioTableWidthMode: "min" },
+      minSize: 140,
+      size: 140,
+      meta: { studioTableWidthMode: "fixed" },
       header: t("pages.column.access"),
       cell: ({ row }) => {
         const page = row.original.page;
@@ -333,7 +349,7 @@ export function usePagesTable(options: UsePagesTableOptions) {
               id: "visits",
               minSize: 96,
               size: 96,
-              meta: { studioTableWidthMode: "min" },
+              meta: { studioTableWidthMode: "flex" },
               header: t("pages.column.visits"),
               enableSorting: true,
               sortingFn: (rowA, rowB) => {
@@ -367,7 +383,7 @@ export function usePagesTable(options: UsePagesTableOptions) {
             id: "traffic",
             minSize: 112,
             size: 112,
-            meta: { studioTableWidthMode: "min" },
+            meta: { studioTableWidthMode: "flex" },
             header: t("pages.column.traffic"),
             cell: ({ row }) => {
               const values = options.trafficSparklineForSlug!(
@@ -397,9 +413,9 @@ export function usePagesTable(options: UsePagesTableOptions) {
       : []),
     columnHelper.accessor((row) => row.page.updatedAt, {
       id: "updated",
-      minSize: 120,
-      size: 120,
-      meta: { studioTableWidthMode: "min" },
+      minSize: 110,
+      size: 110,
+      meta: { studioTableWidthMode: "fixed" },
       header: t("pages.column.updated"),
       cell: ({ row }) =>
         h(
@@ -410,9 +426,9 @@ export function usePagesTable(options: UsePagesTableOptions) {
     }),
     columnHelper.accessor((row) => row.page.status, {
       id: "status",
-      minSize: 144,
-      size: 144,
-      meta: { studioTableWidthMode: "min" },
+      minSize: 120,
+      size: 120,
+      meta: { studioTableWidthMode: "fixed" },
       header: t("pages.column.status"),
       cell: ({ row }) => {
         const status = row.original.page.status;

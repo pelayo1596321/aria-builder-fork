@@ -1,5 +1,6 @@
 import { log } from "@/lib/utils/logger";
 import type { ComponentDSL } from "@/lib/types/nodes";
+import { commitComponentMetadataToBuilderInventory } from "@/composables/useBuilderData";
 import {
   commitComponentDefinition,
   invalidateComponentDefinition,
@@ -16,6 +17,8 @@ import {
 export function commitSavedComponentToClientCaches(
   component: ComponentDSL,
 ): void {
+  commitComponentMetadataToBuilderInventory(component);
+
   commitComponentDefinition({
     id: component.id,
     name: component.name,

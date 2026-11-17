@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBuilderData } from "@/composables/useBuilderData";
 import { useCollectionsList } from "@/features/CMS/composables/useCollectionsList";
+import { useCollectionIcons } from "@/features/CMS/composables/useCollectionIcons";
+import CmsCollectionIconPreview from "@/features/CMS/components/CmsCollectionIconPreview.vue";
 import { useStudioRouter } from "@/features/Studio/core/composables";
 import { isUserComponent } from "@/features/Studio/components/lib/isUserComponent";
 import { formatRelativeTime } from "@/features/Core/utils/formatting";
@@ -25,6 +27,7 @@ const { t } = useStudioI18n();
 const router = useStudioRouter();
 const { pages, components } = useBuilderData();
 const { collections } = useCollectionsList();
+const { getCollectionIcon } = useCollectionIcons();
 
 const recentItems = computed<RecentItem[]>(() => {
   const pageItems = pages.value
@@ -36,7 +39,7 @@ const recentItems = computed<RecentItem[]>(() => {
       detail: t(`dashboard.status.${page.status}`),
       updatedAt: page.updatedAt,
       path: `/pages/${page.slug}`,
-      icon: studioIcons.page,
+      icon: page.icon || "i-lucide:file-text",
     }));
 
   const collectionItems = collections.value.map((collection) => ({
@@ -46,7 +49,7 @@ const recentItems = computed<RecentItem[]>(() => {
     detail: t("dashboard.content.entryCount", { count: collection.itemCount }),
     updatedAt: collection.updatedAt,
     path: `/collections/${collection.name}`,
-    icon: studioIcons.databaseLine,
+    icon: getCollectionIcon(collection.iconName ?? undefined),
   }));
 
   const componentItems = components.value
@@ -58,7 +61,7 @@ const recentItems = computed<RecentItem[]>(() => {
       detail: component.category ?? t("dashboard.content.component"),
       updatedAt: component.updatedAt,
       path: `/components/${component.id}`,
-      icon: studioIcons.component,
+      icon: component.icon || "i-lucide:component",
     }));
 
   return [...pageItems, ...collectionItems, ...componentItems]
@@ -92,8 +95,9 @@ const recentItems = computed<RecentItem[]>(() => {
         @click="router.navigateTo(item.path)"
       >
         <span class="flex min-w-0 items-center gap-3">
-          <span
-            :class="[item.icon, 'size-3.5 shrink-0 text-primary']"
+          <CmsCollectionIconPreview
+            :value="item.icon"
+            class="size-3.5 shrink-0 text-primary"
             aria-hidden="true"
           />
           <span class="truncate text-xs text-foreground">{{ item.title }}</span>

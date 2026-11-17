@@ -239,6 +239,24 @@ const layouts = shallowRef<Layout[]>([]);
 const components = shallowRef<Component[]>([]);
 
 /**
+ * Commit component metadata accepted by the server to the shared inventory so
+ * lists and detail headers update immediately without waiting for a refetch.
+ */
+export function commitComponentMetadataToBuilderInventory(
+  component: Pick<Component, "id" | "icon">,
+): void {
+  const index = components.value.findIndex((item) => item.id === component.id);
+  if (index < 0) return;
+
+  const next = [...components.value];
+  next[index] = {
+    ...next[index]!,
+    icon: component.icon,
+  };
+  components.value = next;
+}
+
+/**
  * Site settings blob returned by `actions.init`. Hydrated on first successful
  * fetch and reused by `useAppearance` to skip the duplicate `settings.get`
  * action on cold boot.

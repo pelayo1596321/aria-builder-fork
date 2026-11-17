@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { toast } from "vue-sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import type { PageAnalytics } from "@/lib/blocks/nodeAnalytics";
 import { studioIcons } from "@/lib/icons";
 import PageDetailOverviewStatsGrid from "./PageDetailOverviewStatsGrid.vue";
 import { useStudioI18n } from "@/i18n";
+import { systemRoleOptions } from "../../composables/usePageAccessState";
 import {
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-defineProps<{
+const props = defineProps<{
   currentError: PageDetailError | null;
   analytics: PageAnalytics | null;
   seoScore: number;
@@ -36,6 +37,7 @@ defineProps<{
   currentLayout?: string;
   currentParent?: string;
   currentVisibility?: "public" | "private" | "unlisted";
+  currentPageType?: "standard" | "not-found" | "cms-collection" | "cms-entry";
   isSaving?: boolean;
   pageIcon?: string;
   availableLayouts?: Array<{ slug: string; name: string }>;
@@ -49,7 +51,7 @@ const emit = defineEmits<{
   retryLoad: [];
   updateLayout: [layout: string];
   updateParent: [parent: string];
-  updateVisibility: [visibility: "public" | "private" | "unlisted"];
+  navigateToTab: [tab: "type" | "access"];
   editIcon: [];
 }>();
 
@@ -57,6 +59,26 @@ const title = defineModel<string>("title", { default: "" });
 const description = defineModel<string>("description", { default: "" });
 const slug = defineModel<string>("slug", { default: "" });
 const { t } = useStudioI18n();
+
+const currentPageTypeLabel = computed(() => {
+  const option = systemRoleOptions.find(
+    (item) => item.value === (props.currentPageType ?? "standard"),
+  );
+  if (!option) return t("pages.type.standard.label");
+  const key =
+    option.value === "not-found"
+      ? "notFound"
+      : option.value === "cms-collection"
+        ? "collection"
+        : option.value === "cms-entry"
+          ? "entry"
+          : "standard";
+  return t(`pages.type.${key}.label` as const);
+});
+
+const currentVisibilityLabel = computed(() =>
+  t(`pages.access.${props.currentVisibility ?? "public"}` as const),
+);
 
 const isEditingPath = ref(false);
 const editingSlug = ref("");
@@ -294,31 +316,36 @@ const detailLabelClass = "text-sm! text-muted-foreground";
             <Label :class="detailLabelClass">
               {{ t("pages.overview.visibility") }}
             </Label>
-            <Select
-              :model-value="currentVisibility ?? 'public'"
+            <button
+              type="button"
+              class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
               :disabled="isSaving"
-              @update:model-value="
-                emit(
-                  'updateVisibility',
-                  $event as 'public' | 'private' | 'unlisted',
-                )
-              "
+              @click="emit('navigateToTab', 'access')"
             >
-              <SelectTrigger class="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="public">{{
-                  t("pages.access.public")
-                }}</SelectItem>
-                <SelectItem value="unlisted">{{
-                  t("pages.access.unlisted")
-                }}</SelectItem>
-                <SelectItem value="private">{{
-                  t("pages.access.private")
-                }}</SelectItem>
-              </SelectContent>
-            </Select>
+              <span>{{ currentVisibilityLabel }}</span>
+              <span
+                :class="[studioIcons.chevronDown, 'size-4 text-muted-foreground']"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <div class="space-y-1.5">
+            <Label :class="detailLabelClass">
+              {{ t("pages.type.title") }}
+            </Label>
+            <button
+              type="button"
+              class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+              :disabled="isSaving"
+              @click="emit('navigateToTab', 'type')"
+            >
+              <span>{{ currentPageTypeLabel }}</span>
+              <span
+                :class="[studioIcons.chevronDown, 'size-4 text-muted-foreground']"
+                aria-hidden="true"
+              />
+            </button>
           </div>
         </div>
       </section>
