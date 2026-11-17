@@ -73,6 +73,7 @@ import { sortRootBlocksByLayoutSlot } from "../../../../lib/layouts/resolveNodeS
 import { useCanonicalBreakpoints } from "../../../composables/useCanonicalBreakpoints";
 import { log } from "@/lib/utils/logger";
 import { resolveAdminPrimaryColor } from "../styles/stageDropFeedback";
+import { generateNodeId } from "../../../../lib/ids/nodeId";
 import wireframeStyles from "../../../styles/wireframe.css?raw";
 
 import { useFrameCoords } from "../composables/useFrameCoords";
@@ -1116,6 +1117,33 @@ function handleAffordanceSelection(
 
   canvasOverlays.showSelection(element, descriptor.nodeId, descriptor.nodeType);
   emit("selectBlock", descriptor.nodeId);
+}
+
+function handleGridAction(payload: {
+  gridId: string;
+  cellId?: string;
+  action: "resize" | "insert-row" | "insert-column" | "merge";
+  neighborId?: string;
+}): void {
+  if (payload.action === "merge") {
+    if (payload.neighborId) emit("deleteBlock", payload.neighborId);
+    return;
+  }
+  if (payload.action !== "resize") return;
+  if (payload.cellId) {
+    emit("deleteBlock", payload.cellId);
+    return;
+  }
+  const cell: BuilderNode = {
+    id: generateNodeId(),
+    type: "Container",
+    props: { element: "div" },
+    classNames: createEmptyClassNames(),
+    customClasses: [],
+    styles: {},
+    children: [],
+  };
+  emit("addBlock", cell, payload.gridId);
 }
 
 const renderFrameInternalWithBlocks = (
@@ -2737,6 +2765,7 @@ defineExpose({ iframeRef, getWindow, getDoc, getBody, getHead });
       @toolbar-style-change="handleToolbarStyleChange"
       @toolbar-props-change="handleToolbarPropsChange"
       @select-affordance="handleAffordanceSelection"
+      @grid-action="handleGridAction"
       @ready="handleOverlayLayerReady"
     />
 

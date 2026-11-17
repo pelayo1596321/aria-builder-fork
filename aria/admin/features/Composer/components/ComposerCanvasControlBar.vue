@@ -20,9 +20,12 @@ import StageMarkupPreviewPopover from "../../Stage/components/StageMarkupPreview
 import CmsPreviewEntryPicker from "../../CMS/components/CmsPreviewEntryPicker.vue";
 import type { PageDSL } from "../../../../lib/types/nodes";
 import { useComposerCanvasControlBar } from "../composables/useComposerCanvasControlBar";
-import { inject, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import type { CmsPreviewEntryContext } from "../../CMS/composables/useCmsPreviewEntryContext";
+import {
+  CANVAS_QUICK_TOOLS_KEY,
+} from "../../Stage/composables/useCanvasQuickToolsContext";
 
 interface Props {
   currentItemType?: "page" | "layout" | "component";
@@ -129,6 +132,10 @@ const showLayoutSlotGroups = inject(
   ref(true),
 );
 const activeLayoutSlot = inject(APP_INJECTION_KEYS.activeLayoutSlot, null);
+const canvasQuickTools = inject(CANVAS_QUICK_TOOLS_KEY, null);
+const quickSelectionSize = computed(
+  () => canvasQuickTools?.value.selectionSizeLabel ?? "",
+);
 
 function handleShowSlotGroupsUpdate(value: boolean): void {
   showLayoutSlotGroups.value = value;
@@ -179,6 +186,17 @@ function handleShowSlotGroupsUpdate(value: boolean): void {
           </Tooltip>
 
           <StageMarkupPreviewPopover variant="toolbar" />
+          <span
+            class="h-0 w-0 shrink-0"
+            aria-hidden="true"
+            data-selection-toolbar-anchor
+          />
+          <span
+            v-if="quickSelectionSize"
+            class="ml-2 whitespace-nowrap rounded-sm bg-primary px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-4 tabular-nums text-primary-foreground shadow-sm"
+            aria-label="Selected element dimensions"
+            data-testid="composer-selection-size"
+          >{{ quickSelectionSize }}</span>
         </div>
 
         <!-- Middle: CMS preview context, viewport, zoom -->

@@ -434,6 +434,8 @@ export default {
     // Navigation, actions, status, content, editor, design, stage, inspector…
     // =========================================================================
     ...studioIconSafelist,
+    "i-lucide:code",
+    "i-lucide:box-select",
     "i-lucide:eye",
     "i-lucide:eye-off",
     "i-hugeicons:flash",

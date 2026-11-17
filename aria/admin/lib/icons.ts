@@ -150,6 +150,8 @@ export const studioIcons = {
   folder: "i-hugeicons:folder-01",
   folderAdd: "i-hugeicons:folder-add",
   code: "i-hugeicons:source-code",
+  sectionNode: "i-lucide:code",
+  containerNode: "i-lucide:box-select",
   codeSquare: "i-hugeicons:code-square",
   code2Line: "i-hugeicons:code",
   text: "i-hugeicons:text",
@@ -339,8 +341,8 @@ export const pseudoCategoryIcons: Record<string, string> = {
 // Node-type icons (Inspector header)
 
 export const inspectorNodeTypeIcons: Record<string, string> = {
-  container: studioIcons.boxLine,
-  section: studioIcons.boxLine,
+  container: studioIcons.containerNode,
+  section: studioIcons.sectionNode,
   div: studioIcons.boxLine,
   block: studioIcons.boxLine,
   text: studioIcons.textLine,
@@ -369,8 +371,8 @@ export const layerNodeTypeIcons: Record<string, string> = {
   listitem: studioIcons.checkSmall,
   listitemIcon: studioIcons.checkCircleLinear,
   icon: studioIcons.star,
-  section: studioIcons.section,
-  container: studioIcons.element,
+  section: studioIcons.sectionNode,
+  container: studioIcons.containerNode,
   layout: studioIcons.element,
   default: studioIcons.element,
 };
@@ -387,7 +389,7 @@ export const toolbarIcons = {
   delete: studioIcons.trash,
   component: studioIcons.component,
   element: studioIcons.element,
-  section: studioIcons.section,
+  section: studioIcons.sectionNode,
   icon: studioIcons.star,
   openMediaPicker: studioIcons.imageUpload,
   loop: studioIcons.inspectorTabProps,

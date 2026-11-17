@@ -66,8 +66,9 @@
         <div v-else class="w-5 shrink-0"></div>
 
         <!-- Icon -->
-        <div
-          :class="[getNodeIconClass(node), 'mx-1.5 size-3.5 shrink-0']"
+        <StudioNodeIcon
+          :icon="getNodeIconClass(node)"
+          class="mx-1.5 size-3.5 shrink-0"
           :style="{
             color: isComponentInstance
               ? 'var(--color-muted-foreground)'
@@ -284,6 +285,7 @@ import {
   resolveLayerDropPosition,
 } from "../utils/dropTargeting";
 import MotionLayerBadge from "../../Inspector/motion/components/MotionLayerBadge.vue";
+import StudioNodeIcon from "@/components/ui/StudioNodeIcon.vue";
 import { useInspectorState } from "../../Inspector/composables/useInspectorState";
 import { useBeacon } from "../../Beacon";
 import { useStageSignalBridge } from "../../Core";
@@ -599,6 +601,14 @@ function getNodeLabel(node: BuilderNode): string {
 
   if (node.type === "Code" || node.type === "code") {
     return "Code";
+  }
+
+  if (normalizeContainerNodeType(node.type).toLowerCase() === "section") {
+    const sectionTag = node.props?.element;
+    if (typeof sectionTag === "string" && sectionTag.trim()) {
+      const normalizedTag = sectionTag.trim();
+      return normalizedTag.charAt(0).toUpperCase() + normalizedTag.slice(1);
+    }
   }
 
   if (normalizeContainerNodeType(node.type).toLowerCase() === "svg") {

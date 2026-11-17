@@ -13,6 +13,7 @@ import DesignWorkbenchTrigger from "../../Design/components/DesignWorkbenchTrigg
 import type { InspectorPseudoState } from "../../../../lib/schemas/classEditor";
 import { formatPseudoStateLabel } from "../../../../lib/styles/pseudoSelectors";
 import { inspectorNodeTypeIcons } from "@/lib/icons";
+import StudioNodeIcon from "@/components/ui/StudioNodeIcon.vue";
 import PanelHeader from "../../Core/components/PanelHeader.vue";
 import { useStudioI18n } from "@/i18n";
 
@@ -85,13 +86,10 @@ function handlePseudoChange(value: InspectorPseudoState) {
     <div
       class="flex size-5 shrink-0 items-center justify-center bg-transparent"
     >
-      <span
-        aria-hidden="true"
-        :class="[
-          icon,
-          'size-4 shrink-0',
-          isLocked ? 'text-primary' : 'text-muted-foreground',
-        ]"
+      <StudioNodeIcon
+        :icon="icon"
+        class="size-4 shrink-0"
+        :class="isLocked ? 'text-primary' : 'text-muted-foreground'"
       />
     </div>
 

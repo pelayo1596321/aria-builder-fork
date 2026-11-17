@@ -6,12 +6,14 @@
 
 import {
   computed,
+  inject,
   nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
   toRef,
   watch,
+  watchEffect,
   type CSSProperties,
 } from "vue";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ import {
   type ToolbarActionName,
 } from "../../../composables/useCanvasOverlays";
 import { OVERLAY_Z_INDEX } from "@/lib/zIndex";
+import { studioIcons } from "@/lib/icons";
 import { getContentHeadingLevel } from "../../Inspector/composables/useContentContract";
 import { useSelectedNodeState } from "../../Core/composables/useSelectedNodeState";
 import { usePropertySave } from "../../Core";
@@ -37,6 +40,13 @@ import SelectionToolbarMotionControl from "./SelectionToolbarMotionControl.vue";
 import { useStudioI18n } from "@/i18n";
 import { resolveCanvasAffordanceVisualLayout } from "../utils/canvasAffordanceLayout";
 import { shouldHideSelectionToolbar } from "../utils/selectionToolbarVisibility";
+import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
+import type { BuilderNode } from "../../../../lib/types/nodes";
+import {
+  CANVAS_GRID_DIMENSIONS,
+  CANVAS_GRID_PRESETS,
+  CANVAS_QUICK_TOOLS_KEY,
+} from "../composables/useCanvasQuickToolsContext";
 import {
   CANVAS_SELECTION_RESIZE_HANDLES,
   canvasSelectionResizeAxes,
@@ -79,17 +89,238 @@ const emit = defineEmits<{
     nodeId: string,
   ): void;
   (e: "select-affordance", descriptor: CanvasAffordanceDescriptor): void;
+  (e: "grid-action", payload: { gridId: string; cellId?: string; edge?: "north" | "east" | "south" | "west"; action: "resize" | "insert-row" | "insert-column" | "merge"; rows?: number; columns?: number; neighborId?: string }): void;
   (e: "ready"): void;
 }>();
 const { t } = useStudioI18n();
 
 const { selectedNode, isMultiSelect } = useSelectedNodeState();
+const pageBlocks = inject(APP_INJECTION_KEYS.pageBlocks, null);
+const canvasQuickTools = inject(CANVAS_QUICK_TOOLS_KEY, null);
 const propertySave = usePropertySave();
 const { styleTarget: resizeStyleTarget } =
   useInspectorStyleTargetWithGlobalDefaults({ propertySave });
 const inspectorState = useInspectorState();
 const { signalStyleUpdate } = useCanvasSignalBridge();
 const { isDragging, dragSource } = useDragDrop();
+const GRID_EDGES = ["north", "east", "south", "west"] as const;
+
+function responsiveBase(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return String(record.base ?? Object.values(record)[0] ?? "");
+  }
+  return "";
+}
+
+function gridTrackCount(value: unknown, fallback: number): number {
+  const source = responsiveBase(value).trim();
+  const repeat = source.match(/repeat\(\s*(\d+)/i);
+  return repeat ? Math.max(1, Number(repeat[1])) : source ? source.split(/\s+/).length : Math.max(1, fallback);
+}
+
+const quickStackTarget = computed(() => {
+  const node = selectedNode.value;
+  if (!node || isMultiSelect.value) return null;
+  const isGrid = (candidate: typeof node) => candidate?.type?.toLowerCase() === "container" && responsiveBase(candidate.styles?.display) === "grid";
+  if (isGrid(node)) return node;
+  if (node.type?.toLowerCase() === "section") return node.children?.find(isGrid) ?? null;
+  return null;
+});
+
+const quickStackDimensions = computed(() => {
+  const target = quickStackTarget.value;
+  const count = target?.children?.length ?? 1;
+  const columns = gridTrackCount(target?.styles?.gridTemplateColumns, Math.ceil(Math.sqrt(count)));
+  return { columns, rows: gridTrackCount(target?.styles?.gridTemplateRows, Math.ceil(count / columns)) };
+});
+const hoveredGridEdge = ref<"north" | "east" | "south" | "west" | null>(null);
+
+const selectedGridCell = computed(() => {
+  const element = overlays.selection.element as HTMLElement | null;
+  const node = selectedNode.value;
+  if (!element || !node || node.type?.toLowerCase() !== "container") return null;
+  const parent = element.parentElement?.closest<HTMLElement>("[data-aria-id]");
+  const gridId = parent?.getAttribute("data-aria-id");
+  if (!parent || !gridId || gridId === node.id) return null;
+  const findNode = (nodes: BuilderNode[], id: string): BuilderNode | null => {
+    for (const entry of nodes ?? []) {
+      if (entry.id === id) return entry;
+      const nested = findNode(entry.children, id);
+      if (nested) return nested;
+    }
+    return null;
+  };
+  const grid = findNode(pageBlocks?.value ?? [], gridId);
+  if (!grid || responsiveBase(grid.styles?.display) !== "grid") return null;
+  const children = grid.children ?? [];
+  const index = children.findIndex((child) => child.id === node.id);
+  if (index < 0) return null;
+  const columns = gridTrackCount(grid.styles?.gridTemplateColumns, Math.ceil(Math.sqrt(children.length || 1)));
+  const rows = gridTrackCount(grid.styles?.gridTemplateRows, Math.ceil((children.length || 1) / columns));
+  return {
+    grid,
+    node,
+    children,
+    index,
+    row: Math.floor(index / columns),
+    column: index % columns,
+    columns,
+    rows,
+    cellElement: element,
+    gridElement: parent,
+  };
+});
+
+const gridInsertionGuideStyle = computed((): CSSProperties => {
+  const edge = hoveredGridEdge.value;
+  const cell = selectedGridCell.value;
+  const iframe = props.iframeRef;
+  if (!edge || !cell || !iframe) return { display: "none" };
+
+  const frameRect = iframe.getBoundingClientRect();
+  const scaleX = iframe.clientWidth > 0 ? frameRect.width / iframe.clientWidth : 1;
+  const scaleY = iframe.clientHeight > 0 ? frameRect.height / iframe.clientHeight : 1;
+  const cellRect = cell.cellElement.getBoundingClientRect();
+  const gridRect = cell.gridElement.getBoundingClientRect();
+  const gridStyle = iframe.contentWindow?.getComputedStyle(cell.gridElement);
+  const columnGap = Number.parseFloat(gridStyle?.columnGap ?? "") || 0;
+  const rowGap = Number.parseFloat(gridStyle?.rowGap ?? "") || 0;
+  const gridCells = Array.from(cell.gridElement.children).filter((child) =>
+    child.hasAttribute("data-aria-id"),
+  );
+  const cellRects = gridCells.map((child) => child.getBoundingClientRect());
+  const left = cellRects.length
+    ? Math.min(...cellRects.map((rect) => rect.left))
+    : gridRect.left;
+  const right = cellRects.length
+    ? Math.max(...cellRects.map((rect) => rect.right))
+    : gridRect.right;
+  const top = cellRects.length
+    ? Math.min(...cellRects.map((rect) => rect.top))
+    : gridRect.top;
+  const bottom = cellRects.length
+    ? Math.max(...cellRects.map((rect) => rect.bottom))
+    : gridRect.bottom;
+  const horizontal = edge === "north" || edge === "south";
+  const localLeft = horizontal
+    ? left
+    : edge === "west" ? cellRect.left - columnGap / 2 : cellRect.right + columnGap / 2;
+  const localTop = horizontal
+    ? edge === "north" ? cellRect.top - rowGap / 2 : cellRect.bottom + rowGap / 2
+    : top;
+
+  return {
+    position: "fixed",
+    left: `${frameRect.left + localLeft * scaleX - (horizontal ? 0 : 2)}px`,
+    top: `${frameRect.top + localTop * scaleY - (horizontal ? 2 : 0)}px`,
+    width: `${(horizontal ? right - left : 4) * scaleX}px`,
+    height: `${(horizontal ? 4 : bottom - top) * scaleY}px`,
+    zIndex: OVERLAY_Z_INDEX.selection - 1,
+  };
+});
+
+function clearGridInsertionGuide(): void {
+  hoveredGridEdge.value = null;
+  window.removeEventListener("pointermove", handleGridGuideHostPointerMove);
+}
+
+function activateGridInsertionGuide(edge: "north" | "east" | "south" | "west"): void {
+  hoveredGridEdge.value = edge;
+  window.addEventListener("pointermove", handleGridGuideHostPointerMove);
+}
+
+function gridEdgeControlStyle(edge: "north" | "east" | "south" | "west"): CSSProperties {
+  const cell = selectedGridCell.value;
+  const iframe = props.iframeRef;
+  if (!cell || !iframe) return { display: "none" };
+
+  const frameRect = iframe.getBoundingClientRect();
+  const scaleX = iframe.clientWidth > 0 ? frameRect.width / iframe.clientWidth : 1;
+  const scaleY = iframe.clientHeight > 0 ? frameRect.height / iframe.clientHeight : 1;
+  const cellRect = cell.cellElement.getBoundingClientRect();
+  const gridStyle = iframe.contentWindow?.getComputedStyle(cell.gridElement);
+  const columnGap = Number.parseFloat(gridStyle?.columnGap ?? "") || 0;
+  const rowGap = Number.parseFloat(gridStyle?.rowGap ?? "") || 0;
+  const centerX = edge === "east"
+    ? frameRect.left + (cellRect.right + columnGap / 2) * scaleX
+    : edge === "west"
+      ? frameRect.left + (cellRect.left - columnGap / 2) * scaleX
+      : frameRect.left + (cellRect.left + cellRect.width / 2) * scaleX;
+  const centerY = edge === "north"
+    ? frameRect.top + (cellRect.top - rowGap / 2) * scaleY
+    : edge === "south"
+      ? frameRect.top + (cellRect.bottom + rowGap / 2) * scaleY
+      : frameRect.top + (cellRect.top + cellRect.height / 2) * scaleY;
+
+  return {
+    position: "fixed",
+    left: `${centerX - 44}px`,
+    top: `${centerY - 44}px`,
+  };
+}
+
+function handleGridGuideHostPointerMove(event: PointerEvent): void {
+  const target = event.target as Element | null;
+  const frameRect = props.iframeRef?.getBoundingClientRect();
+  const pointerIsOverCanvas = frameRect
+    && event.clientX >= frameRect.left
+    && event.clientX <= frameRect.right
+    && event.clientY >= frameRect.top
+    && event.clientY <= frameRect.bottom;
+  if (pointerIsOverCanvas || target?.closest("[data-grid-edge-control]")) return;
+  clearGridInsertionGuide();
+}
+
+function hasGridNeighbor(edge: "north" | "east" | "south" | "west"): boolean {
+  const cell = selectedGridCell.value;
+  if (!cell) return false;
+  if (edge === "north" && cell.row === 0) return false;
+  if (edge === "south" && cell.row >= cell.rows - 1) return false;
+  if (edge === "west" && cell.column === 0) return false;
+  if (edge === "east" && cell.column >= cell.columns - 1) return false;
+  const index = edge === "north" ? cell.index - cell.columns : edge === "south" ? cell.index + cell.columns : edge === "west" ? cell.index - 1 : cell.index + 1;
+  const neighbor = cell.children[index];
+  return Boolean(neighbor && !neighbor.children?.length);
+}
+
+function updateGridDimensions(rows: number, columns: number): void {
+  const target = quickStackTarget.value;
+  if (!target) return;
+  rows = Math.max(1, Math.min(12, Math.round(rows)));
+  columns = Math.max(1, Math.min(12, Math.round(columns)));
+  const count = rows * columns;
+  const children = target.children ?? [];
+  if (count > children.length) {
+    for (let index = children.length; index < count; index++) emit("grid-action", { gridId: target.id, action: "resize", rows, columns });
+  } else if (count < children.length) {
+    const removedCells = children.slice(count);
+    // Never discard authored content as a side effect of changing the grid size.
+    if (removedCells.some((child) => child.children?.length)) return;
+    removedCells.forEach((child) => emit("grid-action", { gridId: target.id, cellId: child.id, action: "resize", rows, columns }));
+  }
+  signalStyleUpdate({ nodeId: target.id, styles: { base: { display: "grid", gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(6rem, auto))` } } });
+}
+
+function handleGridEdgeAction(edge: "north" | "east" | "south" | "west", action: "insert" | "merge"): void {
+  const cell = selectedGridCell.value;
+  if (!cell) return;
+  if (action === "insert") {
+    const rows = cell.rows + (edge === "north" || edge === "south" ? 1 : 0);
+    const columns = cell.columns + (edge === "east" || edge === "west" ? 1 : 0);
+    const additions = edge === "north" || edge === "south" ? cell.columns : cell.rows;
+    for (let index = 0; index < additions; index++) emit("grid-action", { gridId: cell.grid.id, action: "resize", rows, columns });
+    signalStyleUpdate({ nodeId: cell.grid.id, styles: { base: { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(6rem, auto))` } } });
+    return;
+  }
+  if (!hasGridNeighbor(edge)) return;
+  const neighborIndex = edge === "north" ? cell.index - cell.columns : edge === "south" ? cell.index + cell.columns : edge === "west" ? cell.index - 1 : cell.index + 1;
+  const neighbor = cell.children[neighborIndex];
+  if (!neighbor || neighbor.children?.length) return;
+  signalStyleUpdate({ nodeId: cell.node.id, styles: { base: edge === "north" || edge === "south" ? { gridRow: "span 2" } : { gridColumn: "span 2" } } });
+  emit("grid-action", { gridId: cell.grid.id, cellId: cell.node.id, neighborId: neighbor.id, edge, action: "merge" });
+}
 
 const hideToolbarDuringLibraryDrag = computed(() =>
   shouldHideSelectionToolbar(isDragging.value, dragSource.value),
@@ -109,6 +340,9 @@ const overlays = useCanvasOverlays({
   iframeRef: computed(() => iframeRefProp.value ?? null),
   debug: import.meta.env.DEV,
 });
+watch(() => overlays.selection.nodeId, () => {
+  clearGridInsertionGuide();
+});
 
 const RESIZE_STYLE_PROPERTIES = [
   "width",
@@ -117,8 +351,6 @@ const RESIZE_STYLE_PROPERTIES = [
   "heightSizing",
 ] as const;
 const RESIZE_KEYBOARD_COMMIT_DELAY_MS = 320;
-const SELECTION_SIZE_BADGE_HEIGHT = 20;
-const SELECTION_SIZE_BADGE_GAP = 7;
 
 type ResizePreviewSnapshot = ReturnType<
   typeof resizeStyleTarget.captureAuthoredStylePreviewSnapshot
@@ -190,30 +422,20 @@ const showSelectionSizeBadge = computed(
   () => props.showSelectionSizing && Boolean(selectionSizeLabel.value),
 );
 
-const selectionSizeBadgeStyle = computed((): CSSProperties => {
-  const position = overlays.selection.position;
-  if (!position || !displayedSelectionSize.value) {
-    return { display: "none" };
-  }
-
-  const placeInside =
-    position.top +
-      position.height +
-      SELECTION_SIZE_BADGE_GAP +
-      SELECTION_SIZE_BADGE_HEIGHT >
-    window.innerHeight;
-
-  return placeInside
-    ? {
-        left: "50%",
-        top: `${position.height - SELECTION_SIZE_BADGE_GAP}px`,
-        transform: "translate(-50%, -100%)",
-      }
-    : {
-        left: "50%",
-        top: `${position.height + SELECTION_SIZE_BADGE_GAP}px`,
-        transform: "translateX(-50%)",
-      };
+watchEffect(() => {
+  if (!canvasQuickTools) return;
+  const grid = overlays.selection.visible ? quickStackTarget.value : null;
+  canvasQuickTools.value = {
+    selectionSizeLabel: showSelectionSizeBadge.value
+      ? selectionSizeLabel.value
+      : "",
+    grid: grid
+      ? {
+          ...quickStackDimensions.value,
+          applyDimensions: updateGridDimensions,
+        }
+      : null,
+  };
 });
 
 const canResizeSelection = computed(() => {
@@ -650,6 +872,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  clearGridInsertionGuide();
   if (resizeSession) {
     cancelResizeSession();
   } else {
@@ -734,35 +957,40 @@ const toolbarStyle = computed((): CSSProperties => {
     return { display: "none" };
   }
 
-  const { left, top, width, height } = overlays.selection.position;
-  const centerX = left + width / 2;
-  const clampedCenterX = Math.max(
-    TOOLBAR_PADDING,
-    Math.min(centerX, window.innerWidth - TOOLBAR_PADDING),
-  );
-
-  if (placeToolbarAbove.value) {
+  const anchor = document.querySelector<HTMLElement>("[data-selection-toolbar-anchor]");
+  const anchorRect = anchor?.getBoundingClientRect();
+  const bar = anchor?.closest<HTMLElement>("[data-testid='composer-canvas-control-bar']");
+  const barRect = bar?.getBoundingClientRect();
+  if (anchorRect && barRect) {
     return {
       display: "flex",
-      left: `${clampedCenterX}px`,
-      top: `${top - TOOLBAR_OFFSET}px`,
-      transform: "translate(-50%, -100%)",
+      left: `${anchorRect.left + 4}px`,
+      top: `${barRect.top + barRect.height / 2}px`,
+      transform: "translateY(-50%)",
       zIndex: OVERLAY_Z_INDEX.toolbar,
     };
   }
 
+  const { left, top, width, height } = overlays.selection.position;
+  const centerX = left + width / 2;
+  const clampedCenterX = Math.max(TOOLBAR_PADDING, Math.min(centerX, window.innerWidth - TOOLBAR_PADDING));
   return {
     display: "flex",
     left: `${clampedCenterX}px`,
-    top: `${
-      top +
-      height +
-      TOOLBAR_OFFSET +
-      (showSelectionSizeBadge.value
-        ? SELECTION_SIZE_BADGE_GAP + SELECTION_SIZE_BADGE_HEIGHT
-        : 0)
-    }px`,
-    transform: "translate(-50%, 0)",
+    top: `${placeToolbarAbove.value ? top - TOOLBAR_OFFSET : top + height + TOOLBAR_OFFSET}px`,
+    transform: placeToolbarAbove.value ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+    zIndex: OVERLAY_Z_INDEX.toolbar,
+  };
+});
+
+const gridToolsPanelStyle = computed((): CSSProperties => {
+  const position = overlays.selection.position;
+  if (!position) return { display: "none" };
+  return {
+    position: "fixed",
+    left: `${position.left + position.width / 2}px`,
+    top: `${position.top + position.height / 2}px`,
+    transform: "translate(-50%, -50%)",
     zIndex: OVERLAY_Z_INDEX.toolbar,
   };
 });
@@ -1011,16 +1239,113 @@ const nodeTypeLabel = computed(() => {
           </button>
         </template>
 
-        <span
-          v-if="showSelectionSizeBadge"
-          class="pointer-events-none absolute z-1 whitespace-nowrap rounded-sm bg-primary px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-4 tabular-nums text-primary-foreground shadow-sm"
-          :style="selectionSizeBadgeStyle"
-          aria-hidden="true"
-          data-overlay="selection-size"
-        >
-          {{ selectionSizeLabel }}
-        </span>
       </div>
+
+      <section
+        v-if="overlays.selection.visible && quickStackTarget"
+        class="pointer-events-auto fixed flex flex-col gap-2 rounded-sm border border-border bg-sidebar px-2.5 py-2 text-xs text-foreground shadow-lg"
+        :style="gridToolsPanelStyle"
+        aria-label="Grid structure controls"
+        data-testid="composer-grid-tools"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <span class="font-semibold">Grid structure</span>
+          <span class="text-[10px] text-muted-foreground">{{ quickStackDimensions.columns }}×{{ quickStackDimensions.rows }}</span>
+        </div>
+        <div class="grid grid-cols-4 gap-1">
+          <button
+            v-for="preset in CANVAS_GRID_PRESETS"
+            :key="`${preset.rows}x${preset.columns}`"
+            type="button"
+            class="grid size-7 place-items-center rounded-sm border border-border/70 hover:border-primary hover:bg-accent"
+            :title="`${preset.columns} columns, ${preset.rows} rows`"
+            :aria-label="`${preset.columns} columns, ${preset.rows} rows`"
+            @click.stop="updateGridDimensions(preset.rows, preset.columns)"
+          >
+            <span
+              class="grid h-3 w-4 gap-px"
+              :style="{
+                gridTemplateColumns: `repeat(${preset.columns}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${preset.rows}, minmax(0, 1fr))`,
+              }"
+              aria-hidden="true"
+            >
+              <span
+                v-for="cell in preset.cells"
+                :key="cell"
+                class="rounded-[1px] bg-muted-foreground/70"
+              />
+            </span>
+          </button>
+        </div>
+        <div class="flex items-center gap-3">
+          <div
+            v-for="dimension in CANVAS_GRID_DIMENSIONS"
+            :key="dimension.key"
+            class="flex items-center gap-1"
+          >
+            <span class="text-muted-foreground">{{ dimension.label }}</span>
+            <button
+              type="button"
+              class="grid size-5 place-items-center rounded hover:bg-accent"
+              :aria-label="`Decrease ${dimension.label.toLowerCase()}`"
+              @click.stop="updateGridDimensions(
+                quickStackDimensions.rows - (dimension.key === 'rows' ? 1 : 0),
+                quickStackDimensions.columns - (dimension.key === 'columns' ? 1 : 0),
+              )"
+            >−</button>
+            <span class="w-3 text-center tabular-nums">{{ quickStackDimensions[dimension.key] }}</span>
+            <button
+              type="button"
+              class="grid size-5 place-items-center rounded hover:bg-accent"
+              :aria-label="`Increase ${dimension.label.toLowerCase()}`"
+              @click.stop="updateGridDimensions(
+                quickStackDimensions.rows + (dimension.key === 'rows' ? 1 : 0),
+                quickStackDimensions.columns + (dimension.key === 'columns' ? 1 : 0),
+              )"
+            >+</button>
+          </div>
+        </div>
+      </section>
+
+      <div
+        v-if="selectedGridCell"
+        class="pointer-events-none fixed inset-0 overflow-visible"
+        :style="{ zIndex: OVERLAY_Z_INDEX.markupPreview + 2 }"
+        data-overlay="grid-edge-controls"
+      >
+        <div
+          v-for="edge in GRID_EDGES"
+          :key="edge"
+          class="group pointer-events-auto absolute z-[1000] size-22"
+          data-grid-edge-control
+          :style="gridEdgeControlStyle(edge)"
+          @mouseenter="activateGridInsertionGuide(edge)"
+        >
+          <span class="absolute left-1/2 top-1/2 grid size-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full" aria-hidden="true">
+            <span class="size-1.5 rounded-full bg-primary shadow" />
+          </span>
+          <button type="button" class="pointer-events-none invisible absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100" :style="{ clipPath: edge === 'east' ? 'inset(0 10px 0 0)' : edge === 'west' ? 'inset(0 0 0 10px)' : edge === 'south' ? 'inset(0 0 10px 0)' : 'inset(10px 0 0 0)' }" :title="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" :aria-label="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" @click.stop="handleGridEdgeAction(edge, 'insert')">
+            <span class="grid size-5 place-items-center rounded-sm bg-primary text-primary-foreground shadow" aria-hidden="true">
+              <span :class="[studioIcons.add, 'size-4']" />
+            </span>
+          </button>
+          <div v-if="hasGridNeighbor(edge)" class="absolute hidden group-hover:block" :class="edge === 'east' ? 'left-12 top-1/2 -translate-y-1/2' : edge === 'west' ? '-left-2 top-1/2 -translate-y-1/2' : edge === 'south' ? 'left-1/2 top-12 -translate-x-1/2' : 'left-1/2 -top-2 -translate-x-1/2'">
+            <button type="button" class="group/merge grid size-12 place-items-center rounded-sm" :style="{ clipPath: edge === 'east' ? 'inset(0 0 0 10px)' : edge === 'west' ? 'inset(0 10px 0 0)' : edge === 'south' ? 'inset(10px 0 0 0)' : 'inset(0 0 10px 0)' }" :title="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" :aria-label="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" @click.stop="handleGridEdgeAction(edge, 'merge')">
+              <span class="grid size-5 place-items-center rounded-sm border border-border bg-background text-foreground group-hover/merge:bg-accent" aria-hidden="true">
+                <span :class="[studioIcons.link, 'size-4']" />
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="hoveredGridEdge && selectedGridCell"
+        class="pointer-events-none fixed rounded-full bg-primary shadow-[0_0_0_1px_white]"
+        :style="gridInsertionGuideStyle"
+        aria-hidden="true"
+      />
 
       <span class="sr-only" role="status" aria-live="polite">
         {{ resizeAnnouncement }}

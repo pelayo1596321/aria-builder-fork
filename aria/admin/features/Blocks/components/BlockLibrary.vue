@@ -41,6 +41,23 @@ import { log } from "@/lib/utils/logger";
 import type { JsonObject } from "../../../../lib/types/nodes";
 import { useStudioI18n } from "@/i18n";
 import LibraryComponentElement from "./LibraryComponentElement.vue";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ROOT_DROP_ZONE_ID = "__aria-root__" as const;
 
@@ -113,6 +130,21 @@ const props = withDefaults(
   { components: () => [] },
 );
 const { t } = useStudioI18n();
+const sectionTagDialogOpen = ref(false);
+const selectedSectionTag = ref("section");
+const pendingSectionInsert = ref<AddElementPayload | null>(null);
+const sectionTagOptions = [
+  "div",
+  "section",
+  "article",
+  "main",
+  "aside",
+  "nav",
+  "header",
+  "footer",
+  "figure",
+  "address",
+] as const;
 
 const emit = defineEmits<{
   addElement: [elementData: AddElementPayload];
@@ -122,6 +154,54 @@ const { startDrag, endDrag, dragSource } = useDragDrop();
 
 const stageIframeRef = useInjectedStageIframeRef();
 const canvasDrop = useCanvasDrop(stageIframeRef);
+
+function createGridCell(): JsonObject {
+  return {
+    type: "Container",
+    props: { element: "div" },
+    classNames: { base: [] },
+    customClasses: [],
+    styles: {},
+    children: [],
+  };
+}
+
+function createQuickStackContainer(): JsonObject {
+  return {
+    type: "Container",
+    props: { element: "div" },
+    classNames: { base: [] },
+    customClasses: [],
+    styles: {
+      display: { base: "grid" },
+      gridTemplateColumns: { base: "repeat(2, minmax(0, 1fr))" },
+      gridTemplateRows: { base: "repeat(2, minmax(6rem, auto))" },
+      gap: { base: "1.5rem" },
+      padding: { base: "1.5rem" },
+    },
+    children: [
+      createGridCell(),
+      createGridCell(),
+      createGridCell(),
+      createGridCell(),
+    ],
+  };
+}
+
+function createSectionNode(tag = "section"): JsonObject {
+  return {
+    type: "section",
+    props: { element: tag },
+    classNames: { base: [] },
+    customClasses: [],
+    styles: {},
+    children: [createQuickStackContainer()],
+  };
+}
+
+function createSectionGridNode(): JsonObject {
+  return createQuickStackContainer();
+}
 
 interface LibraryElement {
   id: string;
@@ -135,7 +215,12 @@ interface LibraryElement {
 
 const containerElements = ref<LibraryElement[]>([
   { id: "section", type: "section", component: markRaw(SectionElement) },
-  { id: "container", type: "container", component: markRaw(ContainerElement) },
+  {
+    id: "container",
+    type: "container",
+    component: markRaw(ContainerElement),
+    createData: createSectionGridNode,
+  },
 ]);
 
 const componentElements = computed(() =>
@@ -321,6 +406,22 @@ function handleCanvasDrop(event: Event): void {
   const { zone, data, insertionIndex } = parsedDrop.data;
   let payload = data;
 
+  const insertionPayload: AddElementPayload = {
+    type: payload.type,
+    data: payload,
+    ...(typeof payload.componentSlug === "string"
+      ? { componentSlug: payload.componentSlug }
+      : {}),
+    parentId: zone.id === ROOT_DROP_ZONE_ID ? undefined : zone.id,
+    insertionMode: zone.id === ROOT_DROP_ZONE_ID ? "root" : "parent",
+    position: insertionIndex,
+  };
+
+  if (payload.type.toLowerCase() === "section") {
+    requestSectionInsert(insertionPayload);
+    return;
+  }
+
   if (payload.type?.toLowerCase() === "pagination") {
     const targetNodeId = findPaginationAutoConnectTarget({
       pageBlocks: pageBlocks.value,
@@ -374,16 +475,86 @@ function setElementRef(elementId: string, refValue: unknown): void {
 
 function handleAddElement(element: LibraryElement): void {
   const { type, data, componentSlug } = resolveElementPayload(element);
-  emit("addElement", {
+  const payload: AddElementPayload = {
     type,
     data,
     ...(componentSlug ? { componentSlug } : {}),
+  };
+
+  if (type.toLowerCase() === "section") {
+    requestSectionInsert(payload);
+    return;
+  }
+
+  emit("addElement", payload);
+}
+
+function requestSectionInsert(payload: AddElementPayload): void {
+  pendingSectionInsert.value = payload;
+  selectedSectionTag.value = "section";
+  sectionTagDialogOpen.value = true;
+}
+
+function handleSectionTagDialogOpenChange(open: boolean): void {
+  sectionTagDialogOpen.value = open;
+  if (!open) pendingSectionInsert.value = null;
+}
+
+function confirmSectionInsert(): void {
+  const pending = pendingSectionInsert.value;
+  if (!pending) return;
+
+  emit("addElement", {
+    ...pending,
+    data: createSectionNode(selectedSectionTag.value),
   });
+  handleSectionTagDialogOpenChange(false);
 }
 </script>
 
 <template>
   <div class="flex-1 flex-col h-full w-64">
+    <Dialog
+      :open="sectionTagDialogOpen"
+      @update:open="handleSectionTagDialogOpenChange"
+    >
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Choose a section tag</DialogTitle>
+          <DialogDescription>
+            Choose the HTML role for this section. It will be set automatically
+            when the section is added.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-2 py-2">
+          <Label for="section-html-tag">HTML tag</Label>
+          <Select v-model="selectedSectionTag">
+            <SelectTrigger id="section-html-tag">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="tag in sectionTagOptions"
+                :key="tag"
+                :value="tag"
+              >
+                &lt;{{ tag }}&gt;
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            @click="handleSectionTagDialogOpenChange(false)"
+          >
+            Cancel
+          </Button>
+          <Button @click="confirmSectionInsert">Add section</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <!-- Elements List -->
     <div class="flex-1 overflow-y-auto space-y-6 p-2">
       <!-- Containers Section -->

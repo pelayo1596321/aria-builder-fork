@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import BaseElement from "../BaseElement.vue";
-import { studioIcons } from "@/lib/icons";
 
 const props = defineProps<{
   viewMode?: "grid" | "list";
@@ -9,7 +8,7 @@ const props = defineProps<{
 const elementMeta = {
   name: "Section",
   type: "section",
-  icon: studioIcons.section,
+  icon: "i-lucide:code",
   category: "containers",
 };
 
@@ -43,7 +42,7 @@ defineExpose({
 
 <template>
   <BaseElement
-    :icon="elementMeta.icon"
+    icon="i-lucide:code"
     :label="elementMeta.name"
     :view-mode="props.viewMode"
   />

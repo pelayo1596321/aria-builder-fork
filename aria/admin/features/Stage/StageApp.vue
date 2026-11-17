@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, provide, ref, shallowRef } from "vue";
 import AppCanvasShell from "../Core/components/AppCanvasShell.vue";
 import AppInspectorShell from "../Core/components/AppInspectorShell.vue";
 import ComposerPanel from "../Composer/components/ComposerPanel.vue";
 import ComposerCanvasControlBar from "../Composer/components/ComposerCanvasControlBar.vue";
 import StageMarkupPreviewPanel from "./components/StageMarkupPreviewPanel.vue";
 import type { StageAppEmits, StageAppProps } from "./types";
+import {
+  CANVAS_QUICK_TOOLS_KEY,
+  type CanvasQuickToolsState,
+} from "./composables/useCanvasQuickToolsContext";
 
 const props = defineProps<StageAppProps>();
 
 const emit = defineEmits<StageAppEmits>();
+
+provide(
+  CANVAS_QUICK_TOOLS_KEY,
+  shallowRef<CanvasQuickToolsState>({ selectionSizeLabel: "", grid: null }),
+);
 
 const canvasShellRef = ref<InstanceType<typeof AppCanvasShell> | null>(null);
 const canvasAreaRef = ref<HTMLElement | null>(null);
