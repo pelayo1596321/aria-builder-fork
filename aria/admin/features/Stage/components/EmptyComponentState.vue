@@ -25,30 +25,30 @@ const label = computed(() =>
     <div
       class="pointer-events-auto absolute inset-0 flex items-center justify-center"
     >
-      <div class="flex flex-col items-center gap-4 text-center">
-        <p class="max-w-sm text-sm leading-relaxed text-muted-foreground">
+      <div class="flex flex-col items-center gap-5 text-center">
+        <p class="max-w-sm text-base leading-relaxed text-muted-foreground">
           This {{ label }} is empty.
           <br />
           Add an element or chat with the Engineer.
         </p>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
           <Button
-            class="border-border/50! hover:text-primary!"
+            class="size-12 border-border/50! hover:text-primary!"
             variant="outline"
             size="icon-lg"
             @click="emit('addFirstElement')"
           >
-            <span :class="[studioIcons.add, 'size-5']" aria-hidden="true" />
+            <span :class="[studioIcons.add, 'size-6']" aria-hidden="true" />
           </Button>
           <Button
-            class="border-border/50! hover:text-primary!"
+            class="size-12 border-border/50! hover:text-primary!"
             variant="outline"
             size="icon-lg"
             @click="agentPanel.open()"
           >
             <span
-              :class="[studioIcons.sparkles, 'size-5']"
+              :class="[studioIcons.sparkles, 'size-6']"
               aria-hidden="true"
             />
           </Button>

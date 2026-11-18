@@ -69,7 +69,10 @@ import {
 } from "../../../../lib/rendering/canonical/rendererStyles";
 import { getSiteSettingsUtilityEngine } from "../../../../lib/storage/adapter";
 import { resolveRenderableContentValue } from "../../../../lib/cms/structuredText";
-import { sortRootBlocksByLayoutSlot } from "../../../../lib/layouts/resolveNodeSlot";
+import {
+  resolveNodeSlotForLayout,
+  sortRootBlocksByLayoutSlot,
+} from "../../../../lib/layouts/resolveNodeSlot";
 import { useCanonicalBreakpoints } from "../../../composables/useCanonicalBreakpoints";
 import { log } from "@/lib/utils/logger";
 import { resolveAdminPrimaryColor } from "../styles/stageDropFeedback";
@@ -245,6 +248,7 @@ interface Props {
   showSelectionSizing?: boolean;
   showSelectionToolbar?: boolean;
   wireframeMode?: boolean;
+  showHtmlSections?: boolean;
   selectedBlockId?: string | null;
   width?: string | number;
   height?: string | number;
@@ -256,6 +260,7 @@ const props = withDefaults(defineProps<Props>(), {
   showSelectionSizing: true,
   showSelectionToolbar: true,
   wireframeMode: false,
+  showHtmlSections: false,
   selectedBlockId: null,
 });
 
@@ -266,7 +271,11 @@ const cmsPreviewEntryContext = inject<CmsPreviewEntryContext | null>(
 
 const emit = defineEmits<{
   selectBlock: [selection: import("../types").StageSelectBlockInput];
-  addBlock: [block: BuilderNode, parentId: string | null];
+  addElement: [payload: import("../../../types/app").AddElementPayload];
+  addFirstElement: [];
+  addBlock: [block: BuilderNode, parentId: string | null, insertionIndex?: number];
+  addBlocks: [blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }];
+  mergeGridCells: [payload: import("../../../types/app").GridCellMergePayload];
   deleteBlock: [id: string];
   duplicateBlock: [id: string];
   detachComponent: [id: string];
@@ -327,6 +336,235 @@ const brokenMediaNodeIds = new Set<string>();
 const { worldToFrameLocal, getElementAtWorldPoint } = useFrameCoords(iframeRef);
 const { isDragging } = useDragDrop();
 const canvasReorder = useCanvasReorder(iframeRef);
+let htmlSectionGuideDoc: Document | null = null;
+let htmlSectionGuideObserver: MutationObserver | null = null;
+let htmlSectionGuideWindow: Window | null = null;
+let htmlSectionGuideFrame = 0;
+
+function clearHtmlSectionGuides(doc: Document): void {
+  doc.querySelectorAll(
+    "[data-aria-html-section-guide], [data-aria-html-section-active]",
+  ).forEach((guide) => guide.remove());
+}
+
+function syncHtmlSectionGuides(doc: Document): void {
+  if (!doc.body) return;
+  clearHtmlSectionGuides(doc);
+  if (!props.showHtmlSections) return;
+
+  type GuideEntry = {
+    rect: DOMRect;
+    edge: "start" | "end";
+    label: string;
+    isPageArea: boolean;
+  };
+  type GuideGroup = { y: number; entries: GuideEntry[] };
+  const entries: GuideEntry[] = [];
+
+  doc.querySelectorAll<HTMLElement>("[data-aria-html-section]").forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const tag = element.getAttribute("data-aria-html-section") ?? "div";
+    if (tag === "div" && element.getAttribute("data-aria-type") !== "Section") return;
+    const sectionName = element.getAttribute("data-aria-html-section-name")
+      || element.getAttribute("aria-label")
+      || tag.charAt(0).toUpperCase() + tag.slice(1)
+      || "Section";
+    entries.push({ rect, edge: "start", label: sectionName, isPageArea: false });
+    entries.push({ rect, edge: "end", label: sectionName, isPageArea: false });
+  });
+
+  const pageAreas = new Map<string, { label: string; elements: HTMLElement[] }>();
+  doc.querySelectorAll<HTMLElement>("[data-aria-page-area-slot]").forEach((element) => {
+    const slotName = element.getAttribute("data-aria-page-area-slot");
+    if (!slotName) return;
+    const label = element.getAttribute("data-aria-page-area-label") || slotName;
+    const area = pageAreas.get(slotName) ?? { label, elements: [] };
+    area.elements.push(element);
+    pageAreas.set(slotName, area);
+  });
+
+  pageAreas.forEach(({ label, elements }) => {
+    const rects = elements
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    if (rects.length === 0) return;
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    const areaRect = new DOMRect(left, top, right - left, bottom - top);
+    entries.push({ rect: areaRect, edge: "start", label, isPageArea: true });
+    entries.push({ rect: areaRect, edge: "end", label, isPageArea: true });
+  });
+
+  const groups: GuideGroup[] = [];
+  entries.forEach((entry) => {
+    const y = entry.edge === "start" ? entry.rect.top : entry.rect.bottom;
+    const matchingGroups = groups.filter((candidate) =>
+      Math.abs(candidate.y - y) <= 1.5
+      && candidate.entries.some((other) =>
+        entry.rect.left <= other.rect.right && other.rect.left <= entry.rect.right,
+      ),
+    );
+    if (matchingGroups.length === 0) {
+      groups.push({ y, entries: [entry] });
+      return;
+    }
+
+    const [group, ...mergedGroups] = matchingGroups;
+    group.entries.push(entry, ...mergedGroups.flatMap((merged) => merged.entries));
+    mergedGroups.forEach((merged) => {
+      const index = groups.indexOf(merged);
+      if (index >= 0) groups.splice(index, 1);
+    });
+  });
+
+  groups.forEach((group) => {
+    const left = Math.min(...group.entries.map(({ rect }) => rect.left));
+    const right = Math.max(...group.entries.map(({ rect }) => rect.right));
+    const hitArea = doc.createElement("div");
+    hitArea.dataset.ariaHtmlSectionGuide = "shared";
+    Object.assign(hitArea.style, {
+      position: "fixed",
+      left: `${left}px`,
+      top: `${group.y - 16}px`,
+      width: `${right - left}px`,
+      height: "32px",
+      cursor: "default",
+      pointerEvents: "auto",
+      zIndex: "2147483000",
+    });
+
+    const rule = doc.createElement("div");
+    Object.assign(rule.style, {
+      position: "absolute",
+      left: "0",
+      right: "0",
+      top: "16px",
+      borderTop: group.entries.some((entry) => entry.isPageArea)
+        ? "1px dashed rgba(0, 119, 103, 0.7)"
+        : "1px dashed rgba(0, 137, 125, 0.3)",
+      pointerEvents: "none",
+    });
+    hitArea.appendChild(rule);
+
+    let activeLabel: HTMLDivElement | null = null;
+    const clearActiveLabel = (): void => {
+      activeLabel?.remove();
+      activeLabel = null;
+    };
+    const showLabels = (event: PointerEvent): void => {
+      clearActiveLabel();
+      const hasStart = group.entries.some((entry) => entry.edge === "start");
+      const hasEnd = group.entries.some((entry) => entry.edge === "end");
+      const showBelowLine = hasStart && (!hasEnd || event.clientY >= group.y);
+      const sideEntries = group.entries.filter((entry) =>
+        entry.edge === (showBelowLine ? "start" : "end"),
+      );
+      const labelLeft = Math.min(...sideEntries.map(({ rect }) => rect.left)) + 10;
+      const labelRight = Math.max(...sideEntries.map(({ rect }) => rect.right)) - 10;
+
+      const labelGroup = doc.createElement("div");
+      labelGroup.dataset.ariaHtmlSectionActive = "labels";
+      Object.assign(labelGroup.style, {
+        position: "fixed",
+        left: `${labelLeft}px`,
+        top: `${showBelowLine ? group.y + 3 : group.y - 22}px`,
+        maxWidth: `${Math.max(0, labelRight - labelLeft)}px`,
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        overflow: "hidden",
+        pointerEvents: "none",
+        zIndex: "2147483001",
+      });
+
+      const labels = [...sideEntries].sort(
+        (a, b) => Number(b.isPageArea) - Number(a.isPageArea),
+      );
+      labels.forEach((entry) => {
+        const badge = doc.createElement("span");
+        badge.textContent = entry.label;
+        Object.assign(badge.style, {
+          display: "inline-block",
+          maxWidth: `${Math.max(64, (labelRight - labelLeft) / labels.length - 6)}px`,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          padding: "1px 6px",
+          borderRadius: "3px",
+          color: entry.isPageArea ? "#ffffff" : "rgba(0, 112, 104, 0.9)",
+          background: entry.isPageArea ? "#008978" : "rgba(255, 255, 255, 0.9)",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+          font: `${entry.isPageArea ? 600 : 400} 11px/16px ui-sans-serif, system-ui, sans-serif`,
+        });
+        labelGroup.appendChild(badge);
+      });
+
+      doc.body.appendChild(labelGroup);
+      activeLabel = labelGroup;
+    };
+
+    hitArea.addEventListener("pointerenter", showLabels);
+    hitArea.addEventListener("pointermove", showLabels);
+    hitArea.addEventListener("pointerleave", clearActiveLabel);
+    hitArea.addEventListener("pointerdown", (event) => event.stopPropagation());
+    hitArea.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    doc.body.appendChild(hitArea);
+  });
+}
+
+function scheduleHtmlSectionGuides(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win) return;
+  if (htmlSectionGuideFrame) win.cancelAnimationFrame(htmlSectionGuideFrame);
+  htmlSectionGuideFrame = win.requestAnimationFrame(() => {
+    htmlSectionGuideFrame = 0;
+    syncHtmlSectionGuides(doc);
+  });
+}
+
+function ensureHtmlSectionGuideObserver(doc: Document): void {
+  if (htmlSectionGuideDoc === doc) return;
+  htmlSectionGuideObserver?.disconnect();
+  htmlSectionGuideWindow?.removeEventListener("scroll", handleHtmlSectionGuideViewportChange, true);
+  htmlSectionGuideWindow?.removeEventListener("resize", handleHtmlSectionGuideViewportChange);
+
+  htmlSectionGuideDoc = doc;
+  htmlSectionGuideWindow = doc.defaultView;
+  htmlSectionGuideWindow?.addEventListener("scroll", handleHtmlSectionGuideViewportChange, true);
+  htmlSectionGuideWindow?.addEventListener("resize", handleHtmlSectionGuideViewportChange);
+
+  if (htmlSectionGuideWindow && doc.body) {
+    htmlSectionGuideObserver = new htmlSectionGuideWindow.MutationObserver((records) => {
+      const onlyGuideNodesChanged = records.every((record) =>
+        record.type === "childList"
+        && [...record.addedNodes, ...record.removedNodes].every((node) =>
+          node.nodeType === 1
+          && (
+            (node as Element).hasAttribute("data-aria-html-section-guide")
+            || (node as Element).hasAttribute("data-aria-html-section-active")
+          ),
+        ),
+      );
+      if (!onlyGuideNodesChanged) scheduleHtmlSectionGuides(doc);
+    });
+    htmlSectionGuideObserver.observe(doc.body, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+      childList: true,
+      subtree: true,
+    });
+  }
+}
+
+function handleHtmlSectionGuideViewportChange(): void {
+  if (htmlSectionGuideDoc) scheduleHtmlSectionGuides(htmlSectionGuideDoc);
+}
 
 // Overlay system for selection, hover, and drag-drop indicators
 const overlayLayerRef = ref<InstanceType<typeof CanvasOverlayLayer> | null>(
@@ -396,7 +634,7 @@ const cmsRenderKey = computed(() =>
 const { generatedCSS, loadClasses } = useClassEditor();
 const { safeParse } = usePropertySchema();
 const { saveProperties } = usePropertySave();
-const { primarySelectedNodeId, selectedNodeIds } = useBeacon();
+const { primarySelectedNodeId, selectedNodeIds, illuminate } = useBeacon();
 const { viewport } = useViewport();
 const { settings: siteSettings } = useSiteSettings();
 const { activeBreakpoints } = useCanonicalBreakpoints({ autoLoad: true });
@@ -913,6 +1151,8 @@ function updateDisplayStyles(): void {
 
   const doc = iframeRef.value.contentDocument;
   syncDisplayModeState(doc);
+  ensureHtmlSectionGuideObserver(doc);
+  syncHtmlSectionGuides(doc);
 
   const head = doc.head;
   if (!head) return;
@@ -947,7 +1187,7 @@ function updateDisplayStyles(): void {
 
 // Watch for display option changes and update styles dynamically
 watch(
-  () => [props.showOutlines, props.wireframeMode],
+  () => [props.showOutlines, props.wireframeMode, props.showHtmlSections],
   () => {
     updateDisplayStyles();
   },
@@ -1124,14 +1364,66 @@ function handleGridAction(payload: {
   cellId?: string;
   action: "resize" | "insert-row" | "insert-column" | "merge";
   neighborId?: string;
+  placement?: { row: number; column: number; rowSpan?: number; columnSpan?: number };
+  insertionIndex?: number;
+  placements?: Array<{ row: number; column: number; rowSpan: number; columnSpan: number; insertionIndex: number }>;
+  gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> };
 }): void {
   if (payload.action === "merge") {
-    if (payload.neighborId) emit("deleteBlock", payload.neighborId);
+    const placement = payload.placement;
+    if (payload.cellId && payload.neighborId && placement) {
+      emit("mergeGridCells", {
+        gridId: payload.gridId,
+        cellId: payload.cellId,
+        neighborId: payload.neighborId,
+        row: placement.row,
+        column: placement.column,
+        rowSpan: placement.rowSpan ?? 1,
+        columnSpan: placement.columnSpan ?? 1,
+      });
+    }
     return;
   }
   if (payload.action !== "resize") return;
+  const selectionToPreserve = primarySelectedNodeId.value
+    ?? selectedNodeIds.value.at(0)
+    ?? null;
+  const restoreSelectionAfterInsert = (): void => {
+    if (selectionToPreserve) illuminate(selectionToPreserve);
+  };
   if (payload.cellId) {
     emit("deleteBlock", payload.cellId);
+    return;
+  }
+  if (payload.placements?.length) {
+    const cells = payload.placements.map((placement): BuilderNode => ({
+      id: generateNodeId(),
+      type: "Container",
+      props: { element: "div" },
+      classNames: createEmptyClassNames(),
+      customClasses: [],
+      styles: {
+        gridColumn: {
+          base: placement.columnSpan > 1
+            ? `${placement.column + 1} / span ${placement.columnSpan}`
+            : String(placement.column + 1),
+        },
+        gridRow: {
+          base: placement.rowSpan > 1
+            ? `${placement.row + 1} / span ${placement.rowSpan}`
+            : String(placement.row + 1),
+        },
+      },
+      children: [],
+    }));
+    emit(
+      "addBlocks",
+      cells,
+      payload.gridId,
+      payload.placements.map((placement) => placement.insertionIndex),
+      payload.gridMutation,
+    );
+    restoreSelectionAfterInsert();
     return;
   }
   const cell: BuilderNode = {
@@ -1140,10 +1432,24 @@ function handleGridAction(payload: {
     props: { element: "div" },
     classNames: createEmptyClassNames(),
     customClasses: [],
-    styles: {},
+    styles: payload.placement
+      ? {
+          gridColumn: {
+            base: payload.placement.columnSpan && payload.placement.columnSpan > 1
+              ? `${payload.placement.column + 1} / span ${payload.placement.columnSpan}`
+              : String(payload.placement.column + 1),
+          },
+          gridRow: {
+            base: payload.placement.rowSpan && payload.placement.rowSpan > 1
+              ? `${payload.placement.row + 1} / span ${payload.placement.rowSpan}`
+              : String(payload.placement.row + 1),
+          },
+        }
+      : {},
     children: [],
   };
-  emit("addBlock", cell, payload.gridId);
+  emit("addBlock", cell, payload.gridId, payload.insertionIndex);
+  restoreSelectionAfterInsert();
 }
 
 const renderFrameInternalWithBlocks = (
@@ -1248,8 +1554,19 @@ const renderFrameInternalWithBlocks = (
 
   sortedBlocks.forEach((block) => {
     const el = createElementFromBlock(block);
+    const slotName = resolveNodeSlotForLayout(block, props.currentLayout);
+    const slot = props.currentLayout?.slots?.find((candidate) => candidate.name === slotName);
+    if (slot) {
+      el.setAttribute("data-aria-page-area-slot", slot.name);
+      el.setAttribute(
+        "data-aria-page-area-label",
+        slot.label || slot.name.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+      );
+    }
     renderRoot.appendChild(el);
   });
+  ensureHtmlSectionGuideObserver(head.ownerDocument);
+  syncHtmlSectionGuides(head.ownerDocument);
 
   const renderTime = performance.now() - startRender;
 
@@ -1466,6 +1783,24 @@ const createElementFromBlock = (
   el.setAttribute("data-aria-type", block.type);
   el.setAttribute("data-drop-zone", "true");
   el.setAttribute("data-zone-id", block.id);
+  const hasGridPlacement = Boolean(
+    block.styles?.gridColumn || block.styles?.gridRow,
+  );
+  if (
+    isRenderableContainerNodeType(block.type)
+    && !hasGridPlacement
+    && (block.type === "Section" || rootTag !== "div")
+  ) {
+    el.setAttribute("data-aria-html-section", rootTag);
+    el.setAttribute(
+      "data-aria-html-section-name",
+      typeof block.metadata?.label === "string" && block.metadata.label.trim()
+        ? block.metadata.label.trim()
+        : block.type === "Section"
+          ? "Section"
+          : rootTag.charAt(0).toUpperCase() + rootTag.slice(1),
+    );
+  }
 
   // Debug: log Container nodes with data-component-ref props
   if (block.type === "Container" && block.props?.["data-component-ref"]) {
@@ -2407,6 +2742,22 @@ onMounted(async () => {
  */
 onUnmounted(() => {
   isUnmounted = true;
+  htmlSectionGuideObserver?.disconnect();
+  htmlSectionGuideObserver = null;
+  htmlSectionGuideWindow?.removeEventListener(
+    "scroll",
+    handleHtmlSectionGuideViewportChange,
+    true,
+  );
+  htmlSectionGuideWindow?.removeEventListener(
+    "resize",
+    handleHtmlSectionGuideViewportChange,
+  );
+  if (htmlSectionGuideFrame && htmlSectionGuideWindow) {
+    htmlSectionGuideWindow.cancelAnimationFrame(htmlSectionGuideFrame);
+  }
+  htmlSectionGuideDoc = null;
+  htmlSectionGuideWindow = null;
   if (unoExtractTimeoutId != null) {
     window.clearTimeout(unoExtractTimeoutId);
     unoExtractTimeoutId = null;
@@ -2420,6 +2771,7 @@ onUnmounted(() => {
   // when navigating away from the editor
   const doc = iframeRef.value?.contentDocument;
   if (doc) {
+    clearHtmlSectionGuides(doc);
     const videos = doc.querySelectorAll("video");
     videos.forEach((video) => {
       try {
@@ -2765,6 +3117,8 @@ defineExpose({ iframeRef, getWindow, getDoc, getBody, getHead });
       @toolbar-style-change="handleToolbarStyleChange"
       @toolbar-props-change="handleToolbarPropsChange"
       @select-affordance="handleAffordanceSelection"
+      @add-element="emit('addElement', $event)"
+      @open-add-elements="emit('addFirstElement')"
       @grid-action="handleGridAction"
       @ready="handleOverlayLayerReady"
     />

@@ -3,6 +3,7 @@ import { useBeacon } from "../../Beacon";
 
 interface LayersSidebarLike {
   expandAncestorsInLayers: (nodeId: string) => void;
+  expandNodeAndAncestorsInLayers: (nodeId: string) => void;
 }
 
 export interface UseStageShellSyncDeps {
@@ -17,7 +18,7 @@ export function useStageShellSync(deps: UseStageShellSyncDeps): void {
   watch(focusedNodeId, (newId) => {
     if (newId) {
       rightSidebarOpen.value = true;
-      appSidebarRef.value?.expandAncestorsInLayers(newId);
+      appSidebarRef.value?.expandNodeAndAncestorsInLayers(newId);
     }
   });
 }

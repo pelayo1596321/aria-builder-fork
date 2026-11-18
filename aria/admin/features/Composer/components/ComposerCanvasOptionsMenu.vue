@@ -24,6 +24,7 @@ const props = withDefaults(
     showSelectionSizing?: boolean;
     showSelectionToolbar?: boolean;
     wireframeMode?: boolean;
+    showHtmlSections?: boolean;
     isPublished?: boolean;
     livePageHref?: string | null;
     showSlotGroups?: boolean;
@@ -33,6 +34,7 @@ const props = withDefaults(
     showSelectionSizing: true,
     showSelectionToolbar: true,
     wireframeMode: false,
+    showHtmlSections: false,
     isPublished: false,
     livePageHref: null,
     showSlotGroups: true,
@@ -44,6 +46,7 @@ const emit = defineEmits<{
   "update:show-selection-sizing": [value: boolean];
   "update:show-selection-toolbar": [value: boolean];
   "update:wireframe-mode": [value: boolean];
+  "update:show-html-sections": [value: boolean];
   "update:show-slot-groups": [value: boolean];
   unpublish: [];
 }>();
@@ -92,6 +95,10 @@ function toggleWireframeMode(): void {
   if (!next) {
     emit("update:show-outlines", false);
   }
+}
+
+function toggleHtmlSections(): void {
+  emit("update:show-html-sections", !props.showHtmlSections);
 }
 
 function openLivePage(): void {
@@ -168,6 +175,31 @@ onBeforeUnmount(() => {
                   studioIcons.checkLinear,
                   'size-3.5 shrink-0 text-primary',
                 ]"
+              />
+            </CommandItem>
+
+            <CommandItem
+              value="show-html-sections"
+              class="flex cursor-pointer items-center gap-2"
+              @select="toggleHtmlSections"
+            >
+              <span
+                :class="[
+                  studioIcons.code,
+                  'size-3.5 shrink-0 text-muted-foreground',
+                ]"
+                aria-hidden="true"
+              />
+              <span class="min-w-0 flex-1 truncate whitespace-nowrap text-xs">
+                Show HTML sections
+              </span>
+              <span
+                v-if="props.showHtmlSections"
+                :class="[
+                  studioIcons.checkLinear,
+                  'size-3.5 shrink-0 text-primary',
+                ]"
+                aria-hidden="true"
               />
             </CommandItem>
 

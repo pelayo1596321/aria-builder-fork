@@ -42,6 +42,12 @@ import { resolveCanvasAffordanceVisualLayout } from "../utils/canvasAffordanceLa
 import { shouldHideSelectionToolbar } from "../utils/selectionToolbarVisibility";
 import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import type { BuilderNode } from "../../../../lib/types/nodes";
+import type { AddElementPayload } from "../../../types/app";
+import {
+  getQuickAddElements,
+  QUICK_ADD_USAGE_CHANGED_EVENT,
+  type QuickAddElement,
+} from "../../Blocks/composables/quickAddElements";
 import {
   CANVAS_GRID_DIMENSIONS,
   CANVAS_GRID_PRESETS,
@@ -89,14 +95,112 @@ const emit = defineEmits<{
     nodeId: string,
   ): void;
   (e: "select-affordance", descriptor: CanvasAffordanceDescriptor): void;
-  (e: "grid-action", payload: { gridId: string; cellId?: string; edge?: "north" | "east" | "south" | "west"; action: "resize" | "insert-row" | "insert-column" | "merge"; rows?: number; columns?: number; neighborId?: string }): void;
+  (e: "add-element", payload: AddElementPayload): void;
+  (e: "open-add-elements"): void;
+  (e: "grid-action", payload: { gridId: string; cellId?: string; edge?: "north" | "east" | "south" | "west"; action: "resize" | "insert-row" | "insert-column" | "merge"; rows?: number; columns?: number; neighborId?: string; placement?: { row: number; column: number; rowSpan?: number; columnSpan?: number }; placements?: Array<{ row: number; column: number; rowSpan: number; columnSpan: number; insertionIndex: number }>; gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> } }): void;
   (e: "ready"): void;
 }>();
 const { t } = useStudioI18n();
 
 const { selectedNode, isMultiSelect } = useSelectedNodeState();
+const quickAddMenuOpen = ref(false);
+const quickAddSearchQuery = ref("");
+const quickAddUsageRevision = ref(0);
+const quickAddElements = computed(() => {
+  quickAddUsageRevision.value;
+  return getQuickAddElements();
+});
+const filteredQuickAddElements = computed(() => {
+  const query = quickAddSearchQuery.value.trim().toLocaleLowerCase();
+  if (!query) return quickAddElements.value;
+  return quickAddElements.value.filter((element) =>
+    `${element.label} ${element.type}`.toLocaleLowerCase().includes(query),
+  );
+});
+const selectedEmptyContainer = computed(() => {
+  const node = selectedNode.value;
+  return Boolean(
+    overlays.selection.visible &&
+      !isMultiSelect.value &&
+      node &&
+      node.type?.toLowerCase() === "container" &&
+      (node.children?.length ?? 0) === 0,
+  );
+});
+const visibleAffordances = computed(() =>
+  overlays.affordances.filter(
+    (affordance) =>
+      !(
+        selectedEmptyContainer.value &&
+        affordance.kind === "empty-node" &&
+        affordance.nodeId === selectedNode.value?.id
+      ),
+  ),
+);
+const emptyContainerCenterStyle = computed((): CSSProperties => {
+  const position = overlays.selection.position;
+  if (!position) return { display: "none" };
+  return {
+    position: "fixed",
+    left: `${position.left + position.width / 2}px`,
+    top: `${position.top + position.height / 2}px`,
+    transform: "translate(-50%, -50%)",
+    zIndex: 1003,
+  };
+});
+const quickAddPanelStyle = computed((): CSSProperties => {
+  const position = overlays.selection.position;
+  if (!position) return { display: "none" };
+  const margin = 12;
+  const panelWidth = Math.min(304, window.innerWidth - margin * 2);
+  const centerX = Math.min(
+    window.innerWidth - panelWidth / 2 - margin,
+    Math.max(panelWidth / 2 + margin, position.left + position.width / 2),
+  );
+  const panelHeight = Math.min(360, window.innerHeight - margin * 2);
+  const centerY = Math.min(
+    window.innerHeight - panelHeight / 2 - margin,
+    Math.max(panelHeight / 2 + margin, position.top + position.height / 2),
+  );
+  return {
+    position: "fixed",
+    left: `${centerX}px`,
+    top: `${centerY}px`,
+    transform: "translate(-50%, -50%)",
+    width: `${panelWidth}px`,
+    zIndex: 1004,
+  };
+});
+
+function addElementToSelectedContainer(element: QuickAddElement): void {
+  const parentId = selectedEmptyContainer.value ? selectedNode.value?.id : undefined;
+  if (!parentId) return;
+  emit("add-element", {
+    type: element.type,
+    data: element.createData(),
+    parentId,
+    insertionMode: "parent",
+    position: 0,
+  });
+  quickAddMenuOpen.value = false;
+  quickAddSearchQuery.value = "";
+}
+
+function openAllElements(): void {
+  quickAddMenuOpen.value = false;
+  quickAddSearchQuery.value = "";
+  emit("open-add-elements");
+}
+
+function refreshQuickAddElements(): void {
+  quickAddUsageRevision.value += 1;
+}
+
 const pageBlocks = inject(APP_INJECTION_KEYS.pageBlocks, null);
 const canvasQuickTools = inject(CANVAS_QUICK_TOOLS_KEY, null);
+const quickSelectionSize = computed(
+  () => canvasQuickTools?.value.selectionSizeLabel ?? "",
+);
 const propertySave = usePropertySave();
 const { styleTarget: resizeStyleTarget } =
   useInspectorStyleTargetWithGlobalDefaults({ propertySave });
@@ -129,13 +233,150 @@ const quickStackTarget = computed(() => {
   return null;
 });
 
+function findBuilderNodeById(nodes: readonly BuilderNode[], nodeId: string): BuilderNode | null {
+  for (const node of nodes) {
+    if (node.id === nodeId) return node;
+    const nested = findBuilderNodeById(node.children ?? [], nodeId);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+async function waitForBuilderNode(nodeId: string, childCount?: number): Promise<BuilderNode | null> {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const node = findBuilderNodeById(pageBlocks?.value ?? [], nodeId);
+    if (node && (childCount === undefined || node.children?.length === childCount)) return node;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+  }
+  return findBuilderNodeById(pageBlocks?.value ?? [], nodeId);
+}
+
+async function restoreGridToolsSelection(nodeId: string | undefined): Promise<void> {
+  if (!nodeId || selectedNode.value?.id === nodeId) return;
+  const node = findBuilderNodeById(pageBlocks?.value ?? [], nodeId);
+  const document = props.iframeRef?.contentDocument;
+  const element = Array.from(document?.querySelectorAll<HTMLElement>("[data-aria-id]") ?? [])
+    .find((candidate) => candidate.getAttribute("data-aria-id") === nodeId);
+  if (!node || !element) return;
+  overlays.showSelection(element, nodeId, node.type);
+}
+
 const quickStackDimensions = computed(() => {
   const target = quickStackTarget.value;
   const count = target?.children?.length ?? 1;
   const columns = gridTrackCount(target?.styles?.gridTemplateColumns, Math.ceil(Math.sqrt(count)));
   return { columns, rows: gridTrackCount(target?.styles?.gridTemplateRows, Math.ceil(count / columns)) };
 });
+const CANVAS_GRID_LAYOUT_PRESETS = [
+  {
+    id: "three-by-two-grid",
+    label: "Three columns, two rows",
+    columns: 3,
+    rows: 2,
+    cells: [
+      { column: "1", row: "1" },
+      { column: "2", row: "1" },
+      { column: "3", row: "1" },
+      { column: "1", row: "2" },
+      { column: "2", row: "2" },
+      { column: "3", row: "2" },
+    ],
+  },
+  {
+    id: "left-stack-right-full",
+    label: "Left column stacked, right column full height",
+    columns: 2,
+    rows: 2,
+    cells: [
+      { column: "1", row: "1" },
+      { column: "1", row: "2" },
+      { column: "2", row: "1 / span 2" },
+    ],
+  },
+  {
+    id: "left-full-right-stack",
+    label: "Left column full height, right column stacked",
+    columns: 2,
+    rows: 2,
+    cells: [
+      { column: "1", row: "1 / span 2" },
+      { column: "2", row: "1" },
+      { column: "2", row: "2" },
+    ],
+  },
+  {
+    id: "diagonal-four-cells",
+    label: "Four-cell diagonal layout",
+    columns: 3,
+    rows: 2,
+    cells: [
+      { column: "1 / span 2", row: "1" },
+      { column: "3", row: "1" },
+      { column: "1", row: "2" },
+      { column: "2 / span 2", row: "2" },
+    ],
+  },
+] as const;
+const gridToolsPanelRef = ref<HTMLElement | null>(null);
+const gridToolsOffset = ref({ x: 0, y: 0 });
+const gridToolsDrag = ref<{
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startOffsetX: number;
+  startOffsetY: number;
+} | null>(null);
 const hoveredGridEdge = ref<"north" | "east" | "south" | "west" | null>(null);
+const hoveredGridMergeEdge = ref<"north" | "east" | "south" | "west" | null>(null);
+
+function startGridToolsDrag(event: PointerEvent): void {
+  if (event.button !== 0) return;
+  const handle = event.currentTarget as HTMLElement | null;
+  if (!handle) return;
+  event.preventDefault();
+  event.stopPropagation();
+  handle.setPointerCapture(event.pointerId);
+  gridToolsDrag.value = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startOffsetX: gridToolsOffset.value.x,
+    startOffsetY: gridToolsOffset.value.y,
+  };
+}
+
+function moveGridToolsDrag(event: PointerEvent): void {
+  const drag = gridToolsDrag.value;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  event.preventDefault();
+
+  const position = overlays.selection.position;
+  const panelRect = gridToolsPanelRef.value?.getBoundingClientRect();
+  if (!position || !panelRect) return;
+
+  const anchorX = position.left + position.width / 2;
+  const anchorY = position.top + position.height / 2;
+  const desiredX = anchorX + drag.startOffsetX + event.clientX - drag.startX;
+  const desiredY = anchorY + drag.startOffsetY + event.clientY - drag.startY;
+  const margin = 8;
+  const minX = Math.min(window.innerWidth / 2, panelRect.width / 2 + margin);
+  const maxX = Math.max(window.innerWidth / 2, window.innerWidth - panelRect.width / 2 - margin);
+  const minY = Math.min(window.innerHeight / 2, panelRect.height / 2 + margin);
+  const maxY = Math.max(window.innerHeight / 2, window.innerHeight - panelRect.height / 2 - margin);
+  const centerX = Math.min(maxX, Math.max(minX, desiredX));
+  const centerY = Math.min(maxY, Math.max(minY, desiredY));
+
+  gridToolsOffset.value = { x: centerX - anchorX, y: centerY - anchorY };
+}
+
+function endGridToolsDrag(event: PointerEvent): void {
+  if (gridToolsDrag.value?.pointerId !== event.pointerId) return;
+  gridToolsDrag.value = null;
+  const handle = event.currentTarget as HTMLElement | null;
+  if (handle?.hasPointerCapture(event.pointerId)) {
+    handle.releasePointerCapture(event.pointerId);
+  }
+}
 
 const selectedGridCell = computed(() => {
   const element = overlays.selection.element as HTMLElement | null;
@@ -159,13 +400,22 @@ const selectedGridCell = computed(() => {
   if (index < 0) return null;
   const columns = gridTrackCount(grid.styles?.gridTemplateColumns, Math.ceil(Math.sqrt(children.length || 1)));
   const rows = gridTrackCount(grid.styles?.gridTemplateRows, Math.ceil((children.length || 1) / columns));
+  const placements = children.map((child, childIndex) => {
+    const column = parseGridAxis(child.styles?.gridColumn, childIndex % columns);
+    const row = parseGridAxis(child.styles?.gridRow, Math.floor(childIndex / columns));
+    return { column: column.start, row: row.start, columnSpan: column.span, rowSpan: row.span };
+  });
+  const placement = placements[index];
   return {
     grid,
     node,
     children,
     index,
-    row: Math.floor(index / columns),
-    column: index % columns,
+    row: placement.row,
+    column: placement.column,
+    rowSpan: placement.rowSpan,
+    columnSpan: placement.columnSpan,
+    placements,
     columns,
     rows,
     cellElement: element,
@@ -223,6 +473,7 @@ const gridInsertionGuideStyle = computed((): CSSProperties => {
 
 function clearGridInsertionGuide(): void {
   hoveredGridEdge.value = null;
+  hoveredGridMergeEdge.value = null;
   window.removeEventListener("pointermove", handleGridGuideHostPointerMove);
 }
 
@@ -256,70 +507,323 @@ function gridEdgeControlStyle(edge: "north" | "east" | "south" | "west"): CSSPro
 
   return {
     position: "fixed",
-    left: `${centerX - 44}px`,
-    top: `${centerY - 44}px`,
+    left: `${centerX - 16}px`,
+    top: `${centerY - 16}px`,
   };
 }
 
 function handleGridGuideHostPointerMove(event: PointerEvent): void {
   const target = event.target as Element | null;
-  const frameRect = props.iframeRef?.getBoundingClientRect();
-  const pointerIsOverCanvas = frameRect
-    && event.clientX >= frameRect.left
-    && event.clientX <= frameRect.right
-    && event.clientY >= frameRect.top
-    && event.clientY <= frameRect.bottom;
-  if (pointerIsOverCanvas || target?.closest("[data-grid-edge-control]")) return;
+  if (target?.closest("[data-grid-edge-control]")) return;
   clearGridInsertionGuide();
 }
 
-function hasGridNeighbor(edge: "north" | "east" | "south" | "west"): boolean {
+function getGridNeighborIndex(edge: "north" | "east" | "south" | "west"): number | null {
   const cell = selectedGridCell.value;
-  if (!cell) return false;
-  if (edge === "north" && cell.row === 0) return false;
-  if (edge === "south" && cell.row >= cell.rows - 1) return false;
-  if (edge === "west" && cell.column === 0) return false;
-  if (edge === "east" && cell.column >= cell.columns - 1) return false;
-  const index = edge === "north" ? cell.index - cell.columns : edge === "south" ? cell.index + cell.columns : edge === "west" ? cell.index - 1 : cell.index + 1;
-  const neighbor = cell.children[index];
-  return Boolean(neighbor && !neighbor.children?.length);
+  if (!cell) return null;
+  const { row, column, rowSpan, columnSpan, placements } = cell;
+  const neighborRow = edge === "north" ? row - 1 : edge === "south" ? row + rowSpan : row;
+  const neighborColumn = edge === "west" ? column - 1 : edge === "east" ? column + columnSpan : column;
+  if (neighborRow < 0 || neighborRow >= cell.rows || neighborColumn < 0 || neighborColumn >= cell.columns) return null;
+  const neighborIndex = placements.findIndex((placement) =>
+    neighborRow >= placement.row && neighborRow < placement.row + placement.rowSpan
+    && neighborColumn >= placement.column && neighborColumn < placement.column + placement.columnSpan,
+  );
+  const neighbor = neighborIndex >= 0 ? cell.children[neighborIndex] : null;
+  const placement = cell.placements[neighborIndex];
+  if (!neighbor || !placement || neighbor.children?.length) return null;
+
+  if (edge === "east") {
+    return placement.column === column + columnSpan
+      && placement.row === row
+      && placement.rowSpan === rowSpan ? neighborIndex : null;
+  }
+  if (edge === "west") {
+    return placement.column + placement.columnSpan === column
+      && placement.row === row
+      && placement.rowSpan === rowSpan ? neighborIndex : null;
+  }
+  if (edge === "south") {
+    return placement.row === row + rowSpan
+      && placement.column === column
+      && placement.columnSpan === columnSpan ? neighborIndex : null;
+  }
+  return placement.row + placement.rowSpan === row
+    && placement.column === column
+    && placement.columnSpan === columnSpan ? neighborIndex : null;
 }
 
-function updateGridDimensions(rows: number, columns: number): void {
+function hasGridNeighbor(edge: "north" | "east" | "south" | "west"): boolean {
+  return getGridNeighborIndex(edge) !== null;
+}
+
+const gridMergePreviewStyle = computed((): CSSProperties => {
+  const edge = hoveredGridMergeEdge.value;
+  const cell = selectedGridCell.value;
+  const iframe = props.iframeRef;
+  const neighborIndex = edge ? getGridNeighborIndex(edge) : null;
+  if (neighborIndex === null || !cell || !iframe) return { display: "none" };
+
+  const neighbor = cell.children[neighborIndex];
+  const neighborElement = Array.from(cell.gridElement.children).find((child) =>
+    child.getAttribute("data-aria-id") === neighbor?.id,
+  );
+  if (!neighborElement) return { display: "none" };
+
+  const frameRect = iframe.getBoundingClientRect();
+  const scaleX = iframe.clientWidth > 0 ? frameRect.width / iframe.clientWidth : 1;
+  const scaleY = iframe.clientHeight > 0 ? frameRect.height / iframe.clientHeight : 1;
+  const rect = neighborElement.getBoundingClientRect();
+  return {
+    position: "fixed",
+    left: `${frameRect.left + rect.left * scaleX}px`,
+    top: `${frameRect.top + rect.top * scaleY}px`,
+    width: `${rect.width * scaleX}px`,
+    height: `${rect.height * scaleY}px`,
+    zIndex: OVERLAY_Z_INDEX.markupPreview + 1,
+  };
+});
+
+function parseGridAxis(value: unknown, fallbackStart: number): { start: number; span: number } {
+  const source = responsiveBase(value).trim();
+  const [startText, endText] = source.split("/").map((part) => part.trim());
+  const spanMatch = (endText ?? startText).match(/^span\s+(\d+)/i);
+  const span = spanMatch ? Math.max(1, Number(spanMatch[1])) : 1;
+  const start = Number.parseInt(startText, 10);
+  if (!Number.isFinite(start)) return { start: fallbackStart, span };
+  if (spanMatch) return { start: Math.max(0, start - 1), span };
+  const end = Number.parseInt(endText ?? "", 10);
+  return { start: Math.max(0, start - 1), span: Number.isFinite(end) ? Math.max(1, end - start) : 1 };
+}
+
+function gridPlacementStyle(start: number, span: number): string {
+  return span > 1 ? `${start + 1} / span ${span}` : `${start + 1}`;
+}
+
+async function updateGridDimensions(
+  rows: number,
+  columns: number,
+  templateColumns?: string,
+): Promise<void> {
   const target = quickStackTarget.value;
   if (!target) return;
+  const selectedNodeId = selectedNode.value?.id;
   rows = Math.max(1, Math.min(12, Math.round(rows)));
   columns = Math.max(1, Math.min(12, Math.round(columns)));
   const count = rows * columns;
   const children = target.children ?? [];
+  const removedCells = count < children.length ? children.slice(count) : [];
+  // Never discard authored content as a side effect of changing the grid size.
+  if (removedCells.some((child) => child.children?.length)) return;
+
+  const saved = await propertySave.saveNodeUpdates(
+    {
+      styles: {
+        gridTemplateColumns: {
+          base: templateColumns ?? `repeat(${columns}, minmax(0, 1fr))`,
+        },
+        gridTemplateRows: { base: `repeat(${rows}, minmax(6rem, auto))` },
+      },
+    },
+    props.currentItemType,
+    props.currentItemSlug,
+    target.id,
+  );
+  if (!saved) return;
+
   if (count > children.length) {
     for (let index = children.length; index < count; index++) emit("grid-action", { gridId: target.id, action: "resize", rows, columns });
   } else if (count < children.length) {
-    const removedCells = children.slice(count);
-    // Never discard authored content as a side effect of changing the grid size.
-    if (removedCells.some((child) => child.children?.length)) return;
     removedCells.forEach((child) => emit("grid-action", { gridId: target.id, cellId: child.id, action: "resize", rows, columns }));
   }
-  signalStyleUpdate({ nodeId: target.id, styles: { base: { display: "grid", gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(6rem, auto))` } } });
+
+  const updatedTarget = await waitForBuilderNode(target.id, count);
+  if (!updatedTarget || updatedTarget.children?.length !== count) {
+    await restoreGridToolsSelection(selectedNodeId);
+    return;
+  }
+  for (const cell of updatedTarget.children ?? []) {
+    const cellSaved = await propertySave.saveNodeUpdates(
+      { styles: { gridColumn: { base: "auto" }, gridRow: { base: "auto" } } },
+      props.currentItemType,
+      props.currentItemSlug,
+      cell.id,
+    );
+    if (!cellSaved) return;
+  }
+  await nextTick();
+  await restoreGridToolsSelection(selectedNodeId);
 }
 
-function handleGridEdgeAction(edge: "north" | "east" | "south" | "west", action: "insert" | "merge"): void {
+async function applyGridLayoutPreset(preset: (typeof CANVAS_GRID_LAYOUT_PRESETS)[number]): Promise<void> {
+  const target = quickStackTarget.value;
+  if (!target) return;
+  const selectedNodeId = selectedNode.value?.id;
+
+  const children = target.children ?? [];
+  const removedCells = children.slice(preset.cells.length);
+  if (removedCells.some((child) => child.children?.length)) return;
+
+  const saved = await propertySave.saveNodeUpdates(
+    {
+      styles: {
+        gridTemplateColumns: {
+          base: "templateColumns" in preset
+            ? preset.templateColumns
+            : `repeat(${preset.columns}, minmax(0, 1fr))`,
+        },
+        gridTemplateRows: { base: `repeat(${preset.rows}, minmax(6rem, auto))` },
+      },
+    },
+    props.currentItemType,
+    props.currentItemSlug,
+    target.id,
+  );
+  if (!saved) return;
+
+  for (let index = children.length; index < preset.cells.length; index++) {
+    emit("grid-action", { gridId: target.id, action: "resize", rows: preset.rows, columns: preset.columns });
+  }
+  removedCells.forEach((cell) => emit("grid-action", { gridId: target.id, cellId: cell.id, action: "resize", rows: preset.rows, columns: preset.columns }));
+
+  const updatedTarget = await waitForBuilderNode(target.id, preset.cells.length);
+  if (!updatedTarget || updatedTarget.children?.length !== preset.cells.length) {
+    await restoreGridToolsSelection(selectedNodeId);
+    return;
+  }
+
+  for (const [index, cell] of updatedTarget.children.entries()) {
+    const placement = preset.cells[index];
+    const cellSaved = await propertySave.saveNodeUpdates(
+      {
+        styles: {
+          gridColumn: { base: placement ? placement.column : "auto" },
+          gridRow: { base: placement ? placement.row : "auto" },
+        },
+      },
+      props.currentItemType,
+      props.currentItemSlug,
+      cell.id,
+    );
+    if (!cellSaved) return;
+  }
+  await nextTick();
+  await restoreGridToolsSelection(selectedNodeId);
+}
+
+async function handleGridEdgeAction(edge: "north" | "east" | "south" | "west", action: "insert" | "merge"): Promise<void> {
   const cell = selectedGridCell.value;
   if (!cell) return;
   if (action === "insert") {
-    const rows = cell.rows + (edge === "north" || edge === "south" ? 1 : 0);
-    const columns = cell.columns + (edge === "east" || edge === "west" ? 1 : 0);
-    const additions = edge === "north" || edge === "south" ? cell.columns : cell.rows;
-    for (let index = 0; index < additions; index++) emit("grid-action", { gridId: cell.grid.id, action: "resize", rows, columns });
-    signalStyleUpdate({ nodeId: cell.grid.id, styles: { base: { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(6rem, auto))` } } });
+    const insertRow = edge === "north" || edge === "south";
+    const rows = cell.rows + (insertRow ? 1 : 0);
+    const columns = cell.columns + (insertRow ? 0 : 1);
+    if (rows > 12 || columns > 12) return;
+    const line = insertRow
+      ? edge === "north" ? cell.row : cell.row + cell.rowSpan
+      : edge === "west" ? cell.column : cell.column + cell.columnSpan;
+    const shifted = cell.children.map((child, index) => {
+      const previous = cell.placements[index];
+      const start = insertRow ? previous.row : previous.column;
+      const span = insertRow ? previous.rowSpan : previous.columnSpan;
+      const nextStart = start >= line ? start + 1 : start;
+      const nextSpan = start < line && start + span > line ? span + 1 : span;
+      return {
+        child,
+        index,
+        row: insertRow ? nextStart : previous.row,
+        column: insertRow ? previous.column : nextStart,
+        rowSpan: insertRow ? nextSpan : previous.rowSpan,
+        columnSpan: insertRow ? previous.columnSpan : nextSpan,
+      };
+    });
+    const occupied = new Set<string>();
+    for (const placement of shifted) {
+      for (let row = placement.row; row < placement.row + placement.rowSpan; row++) {
+        for (let column = placement.column; column < placement.column + placement.columnSpan; column++) occupied.add(`${row}:${column}`);
+      }
+    }
+    const additions: Array<{ row: number; column: number; rowSpan: number; columnSpan: number }> = [];
+    if (insertRow) {
+      for (let column = 0; column < columns; column++) {
+        if (!occupied.has(`${line}:${column}`)) {
+          additions.push({ row: line, column, rowSpan: 1, columnSpan: 1 });
+        }
+      }
+    } else {
+      for (let row = 0; row < rows; row++) {
+        if (!occupied.has(`${row}:${line}`)) {
+          additions.push({ row, column: line, rowSpan: 1, columnSpan: 1 });
+        }
+      }
+    }
+    const selectedNodeId = selectedNode.value?.id;
+    const sortedExisting = [...shifted].sort((a, b) => a.row - b.row || a.column - b.column);
+    const sortedAdditions = [...additions].sort((a, b) => a.row - b.row || a.column - b.column);
+    const insertionBoundaries = sortedAdditions.map((placement) =>
+      sortedExisting.find((existing) =>
+        insertRow
+          ? existing.row > placement.row
+          : existing.row > placement.row
+            || (existing.row === placement.row && existing.column > placement.column),
+      )?.index ?? cell.children.length,
+    );
+    const placements = sortedAdditions.map((placement, index) => {
+      const insertionBoundary = insertionBoundaries[index];
+      const priorInsertionsAtOrBefore = insertionBoundaries
+        .slice(0, index)
+        .filter((boundary) => boundary <= insertionBoundary).length;
+      return { ...placement, insertionIndex: insertionBoundary + priorInsertionsAtOrBefore };
+    });
+    if (placements.length) {
+      emit("grid-action", {
+        gridId: cell.grid.id,
+        action: "resize",
+        rows,
+        columns,
+        placements,
+        gridMutation: {
+          rows,
+          columns,
+          existingPlacements: shifted.map((placement) => ({
+            nodeId: placement.child.id,
+            row: placement.row,
+            column: placement.column,
+            rowSpan: placement.rowSpan,
+            columnSpan: placement.columnSpan,
+          })),
+        },
+      });
+    }
+    const updatedGrid = await waitForBuilderNode(cell.grid.id, cell.children.length + additions.length);
+    if (!updatedGrid || updatedGrid.children?.length !== cell.children.length + additions.length) return;
+    await nextTick();
+    await restoreGridToolsSelection(selectedNodeId);
     return;
   }
   if (!hasGridNeighbor(edge)) return;
-  const neighborIndex = edge === "north" ? cell.index - cell.columns : edge === "south" ? cell.index + cell.columns : edge === "west" ? cell.index - 1 : cell.index + 1;
+  const neighborRow = edge === "north" ? cell.row - 1 : edge === "south" ? cell.row + cell.rowSpan : cell.row;
+  const neighborColumn = edge === "west" ? cell.column - 1 : edge === "east" ? cell.column + cell.columnSpan : cell.column;
+  const neighborIndex = cell.placements.findIndex((placement) => neighborRow >= placement.row && neighborRow < placement.row + placement.rowSpan && neighborColumn >= placement.column && neighborColumn < placement.column + placement.columnSpan);
   const neighbor = cell.children[neighborIndex];
   if (!neighbor || neighbor.children?.length) return;
-  signalStyleUpdate({ nodeId: cell.node.id, styles: { base: edge === "north" || edge === "south" ? { gridRow: "span 2" } : { gridColumn: "span 2" } } });
-  emit("grid-action", { gridId: cell.grid.id, cellId: cell.node.id, neighborId: neighbor.id, edge, action: "merge" });
+  const neighborPlacement = cell.placements[neighborIndex];
+  if (!neighborPlacement) return;
+  emit("grid-action", {
+    gridId: cell.grid.id,
+    cellId: cell.node.id,
+    neighborId: neighbor.id,
+    edge,
+    action: "merge",
+    placement: {
+      row: Math.min(cell.row, neighborPlacement.row),
+      column: Math.min(cell.column, neighborPlacement.column),
+      rowSpan: Math.max(cell.row + cell.rowSpan, neighborPlacement.row + neighborPlacement.rowSpan)
+        - Math.min(cell.row, neighborPlacement.row),
+      columnSpan: Math.max(cell.column + cell.columnSpan, neighborPlacement.column + neighborPlacement.columnSpan)
+        - Math.min(cell.column, neighborPlacement.column),
+    },
+  });
 }
 
 const hideToolbarDuringLibraryDrag = computed(() =>
@@ -342,6 +846,7 @@ const overlays = useCanvasOverlays({
 });
 watch(() => overlays.selection.nodeId, () => {
   clearGridInsertionGuide();
+  quickAddMenuOpen.value = false;
 });
 
 const RESIZE_STYLE_PROPERTIES = [
@@ -964,9 +1469,9 @@ const toolbarStyle = computed((): CSSProperties => {
   if (anchorRect && barRect) {
     return {
       display: "flex",
-      left: `${anchorRect.left + 4}px`,
+      left: `${anchorRect.left + anchorRect.width / 2}px`,
       top: `${barRect.top + barRect.height / 2}px`,
-      transform: "translateY(-50%)",
+      transform: "translate(-50%, -50%)",
       zIndex: OVERLAY_Z_INDEX.toolbar,
     };
   }
@@ -988,15 +1493,21 @@ const gridToolsPanelStyle = computed((): CSSProperties => {
   if (!position) return { display: "none" };
   return {
     position: "fixed",
-    left: `${position.left + position.width / 2}px`,
-    top: `${position.top + position.height / 2}px`,
+    left: `${position.left + position.width / 2 + gridToolsOffset.value.x}px`,
+    top: `${position.top + position.height / 2 + gridToolsOffset.value.y}px`,
     transform: "translate(-50%, -50%)",
-    zIndex: OVERLAY_Z_INDEX.toolbar,
+    // Keep the interactive grid controls above the legacy stage selection layer.
+    zIndex: 1001,
   };
 });
 
 onMounted(() => {
   emit("ready");
+  window.addEventListener(QUICK_ADD_USAGE_CHANGED_EVENT, refreshQuickAddElements);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener(QUICK_ADD_USAGE_CHANGED_EVENT, refreshQuickAddElements);
 });
 
 defineExpose({
@@ -1243,29 +1754,42 @@ const nodeTypeLabel = computed(() => {
 
       <section
         v-if="overlays.selection.visible && quickStackTarget"
+        ref="gridToolsPanelRef"
         class="pointer-events-auto fixed flex flex-col gap-2 rounded-sm border border-border bg-sidebar px-2.5 py-2 text-xs text-foreground shadow-lg"
         :style="gridToolsPanelStyle"
         aria-label="Grid structure controls"
         data-testid="composer-grid-tools"
       >
-        <div class="flex items-center justify-between gap-4">
+        <div
+          class="flex cursor-move select-none touch-none items-center justify-between gap-4"
+          @pointerdown="startGridToolsDrag"
+          @pointermove="moveGridToolsDrag"
+          @pointerup="endGridToolsDrag"
+          @pointercancel="endGridToolsDrag"
+        >
           <span class="font-semibold">Grid structure</span>
           <span class="text-[10px] text-muted-foreground">{{ quickStackDimensions.columns }}×{{ quickStackDimensions.rows }}</span>
         </div>
         <div class="grid grid-cols-4 gap-1">
           <button
             v-for="preset in CANVAS_GRID_PRESETS"
-            :key="`${preset.rows}x${preset.columns}`"
+            :key="'label' in preset ? preset.label : `${preset.rows}x${preset.columns}`"
             type="button"
-            class="grid size-7 place-items-center rounded-sm border border-border/70 hover:border-primary hover:bg-accent"
-            :title="`${preset.columns} columns, ${preset.rows} rows`"
-            :aria-label="`${preset.columns} columns, ${preset.rows} rows`"
-            @click.stop="updateGridDimensions(preset.rows, preset.columns)"
+            class="grid h-7 w-10 place-items-center rounded-sm border border-border/70 hover:border-primary hover:bg-accent"
+            :title="'label' in preset ? preset.label : `${preset.columns} columns, ${preset.rows} rows`"
+            :aria-label="'label' in preset ? preset.label : `${preset.columns} columns, ${preset.rows} rows`"
+            @click.stop="updateGridDimensions(
+              preset.rows,
+              preset.columns,
+              'templateColumns' in preset ? preset.templateColumns : undefined,
+            )"
           >
             <span
-              class="grid h-3 w-4 gap-px"
+              class="grid h-4 w-8 gap-px"
               :style="{
-                gridTemplateColumns: `repeat(${preset.columns}, minmax(0, 1fr))`,
+                gridTemplateColumns: 'templateColumns' in preset
+                  ? preset.templateColumns
+                  : `repeat(${preset.columns}, minmax(0, 1fr))`,
                 gridTemplateRows: `repeat(${preset.rows}, minmax(0, 1fr))`,
               }"
               aria-hidden="true"
@@ -1274,6 +1798,35 @@ const nodeTypeLabel = computed(() => {
                 v-for="cell in preset.cells"
                 :key="cell"
                 class="rounded-[1px] bg-muted-foreground/70"
+              />
+            </span>
+          </button>
+        </div>
+        <div class="grid grid-cols-4 gap-1">
+          <button
+            v-for="preset in CANVAS_GRID_LAYOUT_PRESETS"
+            :key="preset.id"
+            type="button"
+            class="grid h-7 w-10 place-items-center rounded-sm border border-border/70 hover:border-primary hover:bg-accent"
+            :title="preset.label"
+            :aria-label="preset.label"
+            @click.stop="applyGridLayoutPreset(preset)"
+          >
+            <span
+              class="grid h-4 w-8 gap-px"
+              :style="{
+                gridTemplateColumns: 'templateColumns' in preset
+                  ? preset.templateColumns
+                  : `repeat(${preset.columns}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${preset.rows}, minmax(0, 1fr))`,
+              }"
+              aria-hidden="true"
+            >
+              <span
+                v-for="(cell, index) in preset.cells"
+                :key="index"
+                class="rounded-[1px] bg-muted-foreground/70"
+                :style="{ gridColumn: cell.column, gridRow: cell.row }"
               />
             </span>
           </button>
@@ -1308,6 +1861,81 @@ const nodeTypeLabel = computed(() => {
         </div>
       </section>
 
+      <template v-if="selectedEmptyContainer && overlays.selection.position">
+        <button
+          type="button"
+          class="pointer-events-auto grid size-9 place-items-center rounded-full border border-primary/40 bg-primary/10 text-primary shadow-sm transition hover:border-primary/70 hover:bg-primary/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          :style="emptyContainerCenterStyle"
+          aria-label="Add element to this container"
+          title="Add element"
+          data-testid="empty-container-add-element"
+          @click.stop="quickAddMenuOpen = !quickAddMenuOpen"
+        >
+          <span :class="[studioIcons.addCircle, 'size-5']" aria-hidden="true" />
+        </button>
+
+        <section
+          v-if="quickAddMenuOpen"
+          class="pointer-events-auto fixed max-h-[calc(100vh-24px)] overflow-y-auto rounded-sm border border-border bg-sidebar p-2.5 text-foreground shadow-xl"
+          :style="quickAddPanelStyle"
+          aria-label="Quick add elements"
+          data-testid="empty-container-quick-add"
+          @click.stop
+        >
+          <header class="mb-2 flex items-center justify-between gap-3 px-1">
+            <span class="text-xs font-semibold">Add element</span>
+            <button
+              type="button"
+              class="grid size-6 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Close quick add"
+              @click="quickAddMenuOpen = false; quickAddSearchQuery = ''"
+            >
+              <span :class="[studioIcons.close, 'size-3.5']" aria-hidden="true" />
+            </button>
+          </header>
+          <label class="mb-2 flex h-8 items-center gap-2 rounded-sm border border-border bg-background/60 px-2.5 focus-within:border-primary">
+            <span :class="[studioIcons.search, 'size-3.5 shrink-0 text-muted-foreground']" aria-hidden="true" />
+            <input
+              v-model="quickAddSearchQuery"
+              type="search"
+              class="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              placeholder="Search elements..."
+              aria-label="Search elements"
+              @keydown.stop
+            />
+          </label>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button
+              v-for="element in filteredQuickAddElements"
+              :key="element.id"
+              type="button"
+              class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-sm border border-border/70 bg-background/40 px-1 py-1.5 text-center transition hover:border-primary hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              :aria-label="element.label"
+              :title="element.label"
+              :data-quick-add-element="element.id"
+              @click="addElementToSelectedContainer(element)"
+            >
+              <span :class="[element.icon, 'size-4 shrink-0 text-muted-foreground']" aria-hidden="true" />
+              <span class="max-w-full truncate text-[10px] leading-3">{{ element.label }}</span>
+            </button>
+          </div>
+          <p
+            v-if="filteredQuickAddElements.length === 0"
+            class="px-2 py-4 text-center text-xs text-muted-foreground"
+          >
+            No elements found.
+          </p>
+          <button
+            type="button"
+            class="mt-2.5 h-8 w-full rounded-sm border border-border bg-background/70 text-xs font-medium text-foreground transition hover:border-primary hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            data-testid="quick-add-view-all"
+            @click.stop="openAllElements"
+          >
+            View all
+          </button>
+        </section>
+      </template>
+
       <div
         v-if="selectedGridCell"
         class="pointer-events-none fixed inset-0 overflow-visible"
@@ -1317,22 +1945,23 @@ const nodeTypeLabel = computed(() => {
         <div
           v-for="edge in GRID_EDGES"
           :key="edge"
-          class="group pointer-events-auto absolute z-[1000] size-22"
+          class="group pointer-events-auto absolute z-[1000] size-8"
           data-grid-edge-control
           :style="gridEdgeControlStyle(edge)"
           @mouseenter="activateGridInsertionGuide(edge)"
+          @mouseleave="clearGridInsertionGuide"
         >
           <span class="absolute left-1/2 top-1/2 grid size-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full" aria-hidden="true">
             <span class="size-1.5 rounded-full bg-primary shadow" />
           </span>
-          <button type="button" class="pointer-events-none invisible absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100" :style="{ clipPath: edge === 'east' ? 'inset(0 10px 0 0)' : edge === 'west' ? 'inset(0 0 0 10px)' : edge === 'south' ? 'inset(0 0 10px 0)' : 'inset(10px 0 0 0)' }" :title="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" :aria-label="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" @click.stop="handleGridEdgeAction(edge, 'insert')">
-            <span class="grid size-5 place-items-center rounded-sm bg-primary text-primary-foreground shadow" aria-hidden="true">
+          <button type="button" class="pointer-events-none invisible absolute left-1/2 top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100" :style="{ clipPath: edge === 'east' ? 'inset(0 6px 0 0)' : edge === 'west' ? 'inset(0 0 0 6px)' : edge === 'south' ? 'inset(0 0 6px 0)' : 'inset(6px 0 0 0)' }" :title="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" :aria-label="`Add ${edge === 'north' ? 'row above' : edge === 'south' ? 'row below' : edge === 'west' ? 'column left' : 'column right'}`" @click.stop="handleGridEdgeAction(edge, 'insert')">
+            <span class="grid size-5 place-items-center rounded-[1px] bg-primary text-primary-foreground shadow" aria-hidden="true">
               <span :class="[studioIcons.add, 'size-4']" />
             </span>
           </button>
-          <div v-if="hasGridNeighbor(edge)" class="absolute hidden group-hover:block" :class="edge === 'east' ? 'left-12 top-1/2 -translate-y-1/2' : edge === 'west' ? '-left-2 top-1/2 -translate-y-1/2' : edge === 'south' ? 'left-1/2 top-12 -translate-x-1/2' : 'left-1/2 -top-2 -translate-x-1/2'">
-            <button type="button" class="group/merge grid size-12 place-items-center rounded-sm" :style="{ clipPath: edge === 'east' ? 'inset(0 0 0 10px)' : edge === 'west' ? 'inset(0 10px 0 0)' : edge === 'south' ? 'inset(10px 0 0 0)' : 'inset(0 0 10px 0)' }" :title="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" :aria-label="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" @click.stop="handleGridEdgeAction(edge, 'merge')">
-              <span class="grid size-5 place-items-center rounded-sm border border-border bg-background text-foreground group-hover/merge:bg-accent" aria-hidden="true">
+          <div v-if="hasGridNeighbor(edge)" class="absolute hidden group-hover:block" :class="edge === 'east' ? 'left-4 top-1/2 -translate-y-1/2' : edge === 'west' ? '-left-8 top-1/2 -translate-y-1/2' : edge === 'south' ? 'left-1/2 top-4 -translate-x-1/2' : 'left-1/2 -top-8 -translate-x-1/2'">
+            <button type="button" class="group/merge grid size-12 place-items-center rounded-none" :style="{ clipPath: edge === 'east' ? 'inset(0 0 0 10px)' : edge === 'west' ? 'inset(0 10px 0 0)' : edge === 'south' ? 'inset(10px 0 0 0)' : 'inset(0 0 10px 0)' }" :title="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" :aria-label="`Merge with cell ${edge === 'north' ? 'above' : edge === 'south' ? 'below' : edge === 'west' ? 'on the left' : 'on the right'}`" @mouseenter="hoveredGridMergeEdge = edge" @mouseleave="hoveredGridMergeEdge = null" @click.stop="handleGridEdgeAction(edge, 'merge')">
+              <span class="grid size-5 place-items-center rounded-[1px] bg-primary text-primary-foreground shadow group-hover/merge:bg-primary/90" aria-hidden="true">
                 <span :class="[studioIcons.link, 'size-4']" />
               </span>
             </button>
@@ -1341,8 +1970,16 @@ const nodeTypeLabel = computed(() => {
       </div>
 
       <div
+        v-if="hoveredGridMergeEdge && selectedGridCell"
+        class="pointer-events-none fixed rounded-sm bg-primary/20 ring-1 ring-inset ring-primary/60 transition-colors"
+        :style="gridMergePreviewStyle"
+        aria-hidden="true"
+        data-overlay="grid-merge-preview"
+      />
+
+      <div
         v-if="hoveredGridEdge && selectedGridCell"
-        class="pointer-events-none fixed rounded-full bg-primary shadow-[0_0_0_1px_white]"
+        class="pointer-events-none fixed rounded-full bg-primary/50 shadow-[0_0_0_1px_white]"
         :style="gridInsertionGuideStyle"
         aria-hidden="true"
       />
@@ -1452,6 +2089,18 @@ const nodeTypeLabel = computed(() => {
             <span :class="[btn.iconPath, 'size-3.5 shrink-0']" />
           </Button>
         </div>
+
+        <template v-if="quickSelectionSize">
+          <div
+            class="mx-1.5 h-2.5 shrink-0 border-l border-solid border-muted-foreground/30"
+            aria-hidden="true"
+          />
+          <span
+            class="mr-1.5 whitespace-nowrap px-1.5 font-mono text-[10px] font-medium leading-4 tabular-nums text-muted-foreground"
+            aria-label="Selected element dimensions"
+            data-testid="composer-selection-size"
+          >{{ quickSelectionSize }}</span>
+        </template>
       </div>
 
       <div
@@ -1473,7 +2122,7 @@ const nodeTypeLabel = computed(() => {
       />
 
       <button
-        v-for="affordance in overlays.affordances"
+        v-for="affordance in visibleAffordances"
         :key="`${affordance.kind}:${affordance.nodeId}`"
         type="button"
         class="pointer-events-auto fixed flex min-h-6 min-w-6 items-center justify-center overflow-visible p-0 text-[10px] font-medium text-primary"
@@ -1495,11 +2144,13 @@ const nodeTypeLabel = computed(() => {
           aria-hidden="true"
         />
         <span
-          class="rounded-sm bg-background px-2 py-0.5"
+          class="rounded-sm px-2 py-0.5"
           :class="
             isCollapsedAffordance(affordance)
-              ? 'pointer-events-auto absolute right-1 top-1/2 -translate-y-1/2'
-              : 'pointer-events-none relative'
+              ? 'pointer-events-auto absolute right-1 top-1/2 -translate-y-1/2 bg-background'
+              : affordance.kind === 'empty-node'
+                ? 'pointer-events-none relative border border-primary/25 bg-primary/10 text-primary'
+                : 'pointer-events-none relative bg-background'
           "
           aria-hidden="true"
         >

@@ -23,6 +23,9 @@ defineExpose<AppLeftSidebarShellExpose>({
   expandAncestorsInLayers(nodeId: string) {
     composerSidebarRef.value?.expandAncestorsInLayers(nodeId);
   },
+  expandNodeAndAncestorsInLayers(nodeId: string) {
+    composerSidebarRef.value?.expandNodeAndAncestorsInLayers(nodeId);
+  },
   openQuickSwitch() {
     composerSidebarRef.value?.openQuickSwitch();
   },

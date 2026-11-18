@@ -245,6 +245,16 @@ export interface AddElementPayload {
   readonly position?: number;
 }
 
+export interface GridCellMergePayload {
+  readonly gridId: string;
+  readonly cellId: string;
+  readonly neighborId: string;
+  readonly row: number;
+  readonly column: number;
+  readonly rowSpan: number;
+  readonly columnSpan: number;
+}
+
 export interface LayoutMetadata {
   readonly id: string;
   readonly slug: string;

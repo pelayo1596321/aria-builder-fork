@@ -211,6 +211,7 @@ const {
   requestToggleExpand,
   toggleAll,
   expandAncestors,
+  expandNodeAndAncestors,
   runInitialExpansion,
 } = useLayerExpansion({
   blocks: editorBlocks,
@@ -613,6 +614,7 @@ watch(
 defineExpose({
   toggleAll,
   expandAncestors,
+  expandNodeAndAncestors,
   isAllExpanded,
   isLayerTreeBusy,
 });

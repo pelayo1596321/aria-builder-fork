@@ -7,7 +7,7 @@ import type {
 import type { LoadingState } from "../../Core/composables/useEditorContext";
 import type { EditableItemType } from "../../Core/types/router";
 import type { LayoutInspectorMetadata } from "../../Core/types/layout";
-import type { ReorderOperation } from "../../../types/app";
+import type { AddElementPayload, GridCellMergePayload, ReorderOperation } from "../../../types/app";
 import { mergePageBlocksWithLayoutSlots, resolveSlotRootsForDisplay } from "../../../../lib/layouts/canvasSlotMerge";
 import type {
   StageAppListeners,
@@ -31,6 +31,7 @@ export interface UseStageAppBindingsDeps {
   showSelectionSizing: Ref<boolean>;
   showSelectionToolbar: Ref<boolean>;
   wireframeMode: Ref<boolean>;
+  showHtmlSections: Ref<boolean>;
   currentLayout: Ref<LayoutDSL | null>;
   stageKey: ComputedRef<string>;
   currentItemType: Ref<EditableItemType>;
@@ -47,10 +48,14 @@ export interface UseStageAppBindingsDeps {
   setShowSelectionSizing: (value: boolean) => void;
   setShowSelectionToolbar: (value: boolean) => void;
   setWireframeMode: (value: boolean) => void;
+  setShowHtmlSections: (value: boolean) => void;
   handleCanvasStageReady: () => void;
   handleBackgroundClick: () => void;
   handleStageSelectBlock: (selection: StageSelectBlockInput) => void;
-  handleStageAddBlock: (block: BuilderNode, parentId: string | null) => void;
+  handleAddElement: (payload: AddElementPayload) => Promise<void> | void;
+  handleStageAddBlock: (block: BuilderNode, parentId: string | null, insertionIndex?: number) => void;
+  handleStageAddBlocks: (blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }) => void;
+  handleMergeGridCells: (payload: GridCellMergePayload) => void;
   handleDeleteBlock: (nodeId: string) => void;
   handleDuplicateBlock: (nodeId: string) => void;
   handleDetachComponent: (nodeId: string) => Promise<void> | void;
@@ -98,6 +103,7 @@ export function useStageAppBindings(
     showSelectionSizing,
     showSelectionToolbar,
     wireframeMode,
+    showHtmlSections,
     currentLayout,
     stageKey,
     currentItemType,
@@ -114,10 +120,14 @@ export function useStageAppBindings(
     setShowSelectionSizing,
     setShowSelectionToolbar,
     setWireframeMode,
+    setShowHtmlSections,
     handleCanvasStageReady,
     handleBackgroundClick,
     handleStageSelectBlock,
+    handleAddElement,
     handleStageAddBlock,
+    handleStageAddBlocks,
+    handleMergeGridCells,
     handleDeleteBlock,
     handleDuplicateBlock,
     handleDetachComponent,
@@ -183,6 +193,7 @@ export function useStageAppBindings(
     showSelectionSizing: showSelectionSizing.value,
     showSelectionToolbar: showSelectionToolbar.value,
     wireframeMode: wireframeMode.value,
+    showHtmlSections: showHtmlSections.value,
     currentLayout: currentLayout.value,
     stageKey: stageKey.value,
     currentItemType: currentItemType.value,
@@ -213,6 +224,7 @@ export function useStageAppBindings(
       showSelectionSizing: showSelectionSizing.value,
       showSelectionToolbar: showSelectionToolbar.value,
       wireframeMode: wireframeMode.value,
+      showHtmlSections: showHtmlSections.value,
     },
   }));
 
@@ -224,9 +236,13 @@ export function useStageAppBindings(
     "update:wireframe-mode": setWireframeMode,
     "update:show-selection-sizing": setShowSelectionSizing,
     "update:show-selection-toolbar": setShowSelectionToolbar,
+    "update:show-html-sections": setShowHtmlSections,
     "stage-ready": handleCanvasStageReady,
     "select-block": handleStageSelectBlock,
+    "add-element": handleAddElement,
     "add-block": handleStageAddBlock,
+    "add-blocks": handleStageAddBlocks,
+    "merge-grid-cells": handleMergeGridCells,
     "delete-block": handleDeleteBlock,
     "duplicate-block": handleDuplicateBlock,
     "detach-component": handleDetachComponent,

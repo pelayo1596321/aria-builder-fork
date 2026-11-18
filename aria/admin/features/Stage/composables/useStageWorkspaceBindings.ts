@@ -58,6 +58,8 @@ interface StageWorkspaceNodeEventHandlers {
 
 interface StageWorkspaceEditorMutationHandlers {
   handleAddBlock: UseStageMutationActionsDeps["handleAddBlock"];
+  handleAddBlocks: UseStageMutationActionsDeps["handleAddBlocks"];
+  handleMergeGridCells: UseStageAppBindingsDeps["handleMergeGridCells"];
   handleReorderBlock: UseStageMutationActionsDeps["handleReorderBlock"];
 }
 
@@ -243,14 +245,22 @@ export function useStageWorkspaceBindings(
     showSelectionSizing,
     showSelectionToolbar,
     wireframeMode,
+    showHtmlSections,
     setShowOutlines,
     setShowSelectionSizing,
     setShowSelectionToolbar,
     setWireframeMode,
+    setShowHtmlSections,
   } = useStageDisplayState();
   const openLayersEditorTab = (): void => {
     setEditingTab("layers");
     openLeftSidebar();
+  };
+  const handleAddElementAndOpenLayers: UseStageShellActionsDeps["handleAddElement"] = (
+    payload,
+  ) => {
+    deps.nodeEventHandlers.handleAddElement(payload);
+    openLayersEditorTab();
   };
 
   const { handleStageSave, handleStagePublish } = useStagePersistenceActions({
@@ -278,9 +288,11 @@ export function useStageWorkspaceBindings(
 
   const {
     handleStageAddBlock: handleMutationAddBlock,
+    handleStageAddBlocks: handleMutationAddBlocks,
     handleStageReorderBlock: handleMutationReorderBlock,
   } = useStageMutationActions({
     handleAddBlock: deps.editorMutationHandlers.handleAddBlock,
+    handleAddBlocks: deps.editorMutationHandlers.handleAddBlocks,
     handleReorderBlock: deps.editorMutationHandlers.handleReorderBlock,
   });
 
@@ -342,7 +354,7 @@ export function useStageWorkspaceBindings(
     loadLayoutForPage: handleLoadLayoutDataOnly,
     pages: deps.pages,
     layouts: deps.layouts,
-    handleAddElement: deps.nodeEventHandlers.handleAddElement,
+    handleAddElement: handleAddElementAndOpenLayers,
     handleLayersReorderNode: deps.nodeEventHandlers.handleLayersReorderNode,
     appMode,
     pickerOpen,
@@ -416,15 +428,23 @@ export function useStageWorkspaceBindings(
       showSelectionSizing,
       showSelectionToolbar,
       wireframeMode,
+      showHtmlSections,
       handleUndo,
       handleRedo,
       setShowOutlines,
       setShowSelectionSizing,
       setShowSelectionToolbar,
       setWireframeMode,
+      setShowHtmlSections,
       handleBackgroundClick,
       handleStageSelectBlock,
+      handleAddElement: handleAddElementAndOpenLayers,
       handleStageAddBlock,
+      handleStageAddBlocks: (...args) => {
+        handleMutationAddBlocks(...args);
+        openLayersEditorTab();
+      },
+      handleMergeGridCells: deps.editorMutationHandlers.handleMergeGridCells,
       handleDeleteBlock,
       handleDuplicateBlock,
       handleDetachComponent,

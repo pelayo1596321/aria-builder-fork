@@ -55,10 +55,17 @@ export function resolveShortcutKeyFromEvent(
   if (event.shiftKey) parts.push("shift");
   if (event.altKey) parts.push("alt");
 
-  const key =
-    event.altKey && /^Key[A-Z]$/.test(event.code)
+  const normalizedEventKey = eventKey.toLowerCase();
+  const isDeleteKey =
+    event.code === "Delete" ||
+    normalizedEventKey === "delete" ||
+    normalizedEventKey === "del" ||
+    normalizedEventKey === "supr";
+  const key = isDeleteKey
+    ? "delete"
+    : event.altKey && /^Key[A-Z]$/.test(event.code)
       ? event.code.slice(3).toLowerCase()
-      : eventKey.toLowerCase();
+      : normalizedEventKey;
   parts.push(key);
   return parts.join("+");
 }

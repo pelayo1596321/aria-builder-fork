@@ -1,6 +1,7 @@
-import { onMounted, onUnmounted, type Ref } from "vue";
+import { onMounted, onUnmounted, watch, type Ref } from "vue";
 import { z } from "zod";
 
+import { useBeacon } from "../../Beacon";
 import { useCanvasSignalBridge } from "../../Core";
 import type { StageSelectBlockInput } from "../types";
 import type { OverlayPosition } from "../../../composables/useCanvasOverlays";
@@ -26,11 +27,13 @@ const InsertionIndicatorDetailSchema = z.discriminatedUnion("visible", [
     .strict(),
 ]);
 
+// Canvas events may include DOM/timestamp metadata in addition to the ID.
+// Zod strips unknown keys by default, so listeners validate the ID without
+// dropping legitimate select/delete events.
 const NodeEventDetailSchema = z
   .object({
     nodeId: z.string().min(1),
-  })
-  .strict();
+  });
 
 interface UseStageGlobalCanvasEventsOptions {
   iframeRef: Ref<HTMLIFrameElement | null>;
@@ -55,6 +58,64 @@ export function useStageGlobalCanvasEvents(
   options: UseStageGlobalCanvasEventsOptions,
 ): void {
   const { broadcastComponentWrapperResponse } = useCanvasSignalBridge();
+  const { focusedNodeId, selectedNodeIds } = useBeacon();
+  let boundIframeDocument: Document | null = null;
+
+  const handleCanvasDeleteKeydown = (event: KeyboardEvent): void => {
+    const target = event.target as HTMLElement | null;
+    const isEditable = Boolean(
+      target &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
+          target.closest("[contenteditable='true']")),
+    );
+    if (
+      isEditable ||
+      event.repeat ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+    const isDelete =
+      key === "delete" ||
+      key === "del" ||
+      key === "supr" ||
+      event.code === "Delete" ||
+      event.keyCode === 46;
+    const isBackspace = key === "backspace" || event.keyCode === 8;
+    if (!isDelete && !isBackspace) return;
+
+    const nodeIds =
+      selectedNodeIds.value.length > 1
+        ? [...selectedNodeIds.value]
+        : focusedNodeId.value
+          ? [focusedNodeId.value]
+          : [];
+    if (nodeIds.length === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    nodeIds.forEach((nodeId) => options.emit("deleteBlock", nodeId));
+  };
+
+  const bindIframeKeyboard = (): void => {
+    boundIframeDocument?.removeEventListener(
+      "keydown",
+      handleCanvasDeleteKeydown,
+      true,
+    );
+    boundIframeDocument = options.iframeRef.value?.contentDocument ?? null;
+    boundIframeDocument?.addEventListener(
+      "keydown",
+      handleCanvasDeleteKeydown,
+      true,
+    );
+  };
+  const stopWatchingIframe = watch(options.iframeRef, bindIframeKeyboard);
 
   const handleInsertionIndicator = (event: Event): void => {
     const parsed = InsertionIndicatorDetailSchema.safeParse(
@@ -134,6 +195,8 @@ export function useStageGlobalCanvasEvents(
   };
 
   onMounted(() => {
+    bindIframeKeyboard();
+    options.iframeRef.value?.addEventListener("load", bindIframeKeyboard);
     window.addEventListener(
       "canvas:insertion-indicator",
       handleInsertionIndicator,
@@ -144,6 +207,13 @@ export function useStageGlobalCanvasEvents(
   });
 
   onUnmounted(() => {
+    stopWatchingIframe();
+    options.iframeRef.value?.removeEventListener("load", bindIframeKeyboard);
+    boundIframeDocument?.removeEventListener(
+      "keydown",
+      handleCanvasDeleteKeydown,
+      true,
+    );
     window.removeEventListener(
       "canvas:insertion-indicator",
       handleInsertionIndicator,

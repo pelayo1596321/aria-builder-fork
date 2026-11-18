@@ -6,7 +6,7 @@ import type {
   LayoutDSL,
 } from "../../../../lib/types/nodes";
 import type { EditableItemType } from "../types/router";
-import type { ReorderOperation } from "../../../types/app";
+import type { AddElementPayload, GridCellMergePayload, ReorderOperation } from "../../../types/app";
 import { nextStartupInstanceId, traceStartup } from "@/lib/startupTrace";
 import { useShellModeTransition } from "../composables/useShellModeTransition";
 
@@ -30,6 +30,7 @@ const props = defineProps<{
   showSelectionSizing: boolean;
   showSelectionToolbar: boolean;
   wireframeMode: boolean;
+  showHtmlSections: boolean;
   currentLayout: LayoutDSL | null;
   stageKey: string;
   currentItemType: EditableItemType;
@@ -49,7 +50,10 @@ const emit = defineEmits<{
   "update:wireframe-mode": [value: boolean];
   "stage-ready": [];
   "select-block": [selection: StageSelectBlockInput];
-  "add-block": [block: BuilderNode, parentId: string | null];
+  "add-element": [payload: AddElementPayload];
+  "merge-grid-cells": [payload: GridCellMergePayload];
+  "add-block": [block: BuilderNode, parentId: string | null, insertionIndex?: number];
+  "add-blocks": [blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }];
   "delete-block": [nodeId: string];
   "duplicate-block": [nodeId: string];
   "detach-component": [nodeId: string];
@@ -169,11 +173,15 @@ defineExpose({
           :show-selection-sizing="props.showSelectionSizing"
           :show-selection-toolbar="props.showSelectionToolbar"
           :wireframe-mode="props.wireframeMode"
+          :show-html-sections="props.showHtmlSections"
           :page-slug="props.pageSlug"
           :current-layout="props.currentLayout"
           @ready="emit('stage-ready')"
           @select-block="emit('select-block', $event)"
-          @add-block="(block, parentId) => emit('add-block', block, parentId)"
+          @add-element="emit('add-element', $event)"
+          @merge-grid-cells="emit('merge-grid-cells', $event)"
+          @add-block="(block, parentId, insertionIndex) => emit('add-block', block, parentId, insertionIndex)"
+          @add-blocks="(blocks, parentId, insertionIndices, gridMutation) => emit('add-blocks', blocks, parentId, insertionIndices, gridMutation)"
           @delete-block="emit('delete-block', $event)"
           @duplicate-block="emit('duplicate-block', $event)"
           @detach-component="emit('detach-component', $event)"

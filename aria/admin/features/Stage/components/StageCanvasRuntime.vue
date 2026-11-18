@@ -20,6 +20,7 @@ interface Props {
   showSelectionSizing: boolean;
   showSelectionToolbar: boolean;
   wireframeMode: boolean;
+  showHtmlSections: boolean;
   pageSlug: string | null;
   currentLayout: LayoutDSL | null;
 }
@@ -36,7 +37,10 @@ const canMountStage = computed(
 const emit = defineEmits<{
   ready: [];
   selectBlock: [selection: StageSelectBlockInput];
-  addBlock: [block: BuilderNode, parentId: string | null];
+  addElement: [payload: import("../../../types/app").AddElementPayload];
+  mergeGridCells: [payload: import("../../../types/app").GridCellMergePayload];
+  addBlock: [block: BuilderNode, parentId: string | null, insertionIndex?: number];
+  addBlocks: [blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }];
   deleteBlock: [nodeId: string];
   duplicateBlock: [nodeId: string];
   detachComponent: [nodeId: string];
@@ -78,11 +82,16 @@ defineExpose({
       :show-selection-sizing="props.showSelectionSizing"
       :show-selection-toolbar="props.showSelectionToolbar"
       :wireframe-mode="props.wireframeMode"
+      :show-html-sections="props.showHtmlSections"
       :page-slug="props.pageSlug"
       :current-layout="props.currentLayout"
       @ready="handleStageReady"
       @select-block="emit('selectBlock', $event)"
-      @add-block="(block, parentId) => emit('addBlock', block, parentId)"
+      @add-element="emit('addElement', $event)"
+      @add-first-element="emit('addFirstElement')"
+      @merge-grid-cells="emit('mergeGridCells', $event)"
+      @add-block="(block, parentId, insertionIndex) => emit('addBlock', block, parentId, insertionIndex)"
+      @add-blocks="(blocks, parentId, insertionIndices, gridMutation) => emit('addBlocks', blocks, parentId, insertionIndices, gridMutation)"
       @delete-block="emit('deleteBlock', $event)"
       @duplicate-block="emit('duplicateBlock', $event)"
       @detach-component="emit('detachComponent', $event)"

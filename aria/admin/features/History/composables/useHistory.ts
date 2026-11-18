@@ -1132,6 +1132,9 @@ export function useHistory(): UseHistoryReturn {
       broadcastHistoryState();
     } finally {
       isUndoing.value = false;
+      // Broadcast again after leaving the in-progress state so the controls
+      // reflect the newly available undo/redo operation.
+      broadcastHistoryState();
     }
   }
 
@@ -1183,6 +1186,9 @@ export function useHistory(): UseHistoryReturn {
       broadcastHistoryState();
     } finally {
       isRedoing.value = false;
+      // The previous broadcast happens while redo is still in progress and
+      // reports both controls as disabled. Publish the settled state as well.
+      broadcastHistoryState();
     }
   }
 

@@ -6,10 +6,12 @@ const StageDisplayStateSchema = z.object({
   showSelectionSizing: z.boolean(),
   showSelectionToolbar: z.boolean(),
   wireframeMode: z.boolean(),
+  showHtmlSections: z.boolean(),
 });
 
 const SELECTION_SIZING_STORAGE_KEY = "aria-show-selection-sizing";
 const SELECTION_TOOLBAR_STORAGE_KEY = "aria-show-selection-toolbar";
+const HTML_SECTIONS_STORAGE_KEY = "aria-show-html-sections";
 
 function readStoredSelectionSizingVisibility(): boolean {
   if (typeof window === "undefined") {
@@ -27,15 +29,22 @@ function readStoredSelectionToolbarVisibility(): boolean {
   return window.localStorage.getItem(SELECTION_TOOLBAR_STORAGE_KEY) !== "false";
 }
 
+function readStoredHtmlSectionsVisibility(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(HTML_SECTIONS_STORAGE_KEY) === "true";
+}
+
 export interface UseStageDisplayStateReturn {
   showOutlines: Ref<boolean>;
   showSelectionSizing: Ref<boolean>;
   showSelectionToolbar: Ref<boolean>;
   wireframeMode: Ref<boolean>;
+  showHtmlSections: Ref<boolean>;
   setShowOutlines: (value: boolean) => void;
   setShowSelectionSizing: (value: boolean) => void;
   setShowSelectionToolbar: (value: boolean) => void;
   setWireframeMode: (value: boolean) => void;
+  setShowHtmlSections: (value: boolean) => void;
 }
 
 export function useStageDisplayState(): UseStageDisplayStateReturn {
@@ -44,12 +53,14 @@ export function useStageDisplayState(): UseStageDisplayStateReturn {
     showSelectionSizing: readStoredSelectionSizingVisibility(),
     showSelectionToolbar: readStoredSelectionToolbarVisibility(),
     wireframeMode: false,
+    showHtmlSections: readStoredHtmlSectionsVisibility(),
   });
 
   const showOutlines = ref(initialState.showOutlines);
   const showSelectionSizing = ref(initialState.showSelectionSizing);
   const showSelectionToolbar = ref(initialState.showSelectionToolbar);
   const wireframeMode = ref(initialState.wireframeMode);
+  const showHtmlSections = ref(initialState.showHtmlSections);
 
   const setShowOutlines = (value: boolean): void => {
     showOutlines.value = StageDisplayStateSchema.shape.showOutlines.parse(value);
@@ -86,14 +97,25 @@ export function useStageDisplayState(): UseStageDisplayStateReturn {
       StageDisplayStateSchema.shape.wireframeMode.parse(value);
   };
 
+  const setShowHtmlSections = (value: boolean): void => {
+    const parsedValue =
+      StageDisplayStateSchema.shape.showHtmlSections.parse(value);
+    showHtmlSections.value = parsedValue;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(HTML_SECTIONS_STORAGE_KEY, String(parsedValue));
+    }
+  };
+
   return {
     showOutlines,
     showSelectionSizing,
     showSelectionToolbar,
     wireframeMode,
+    showHtmlSections,
     setShowOutlines,
     setShowSelectionSizing,
     setShowSelectionToolbar,
     setWireframeMode,
+    setShowHtmlSections,
   };
 }

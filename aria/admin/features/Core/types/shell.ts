@@ -100,5 +100,6 @@ export interface AppLeftSidebarShellListeners {
 
 export interface AppLeftSidebarShellExpose {
   expandAncestorsInLayers: (nodeId: string) => void;
+  expandNodeAndAncestorsInLayers: (nodeId: string) => void;
   openQuickSwitch: () => void;
 }

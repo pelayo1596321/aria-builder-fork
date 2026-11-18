@@ -20,12 +20,9 @@ import StageMarkupPreviewPopover from "../../Stage/components/StageMarkupPreview
 import CmsPreviewEntryPicker from "../../CMS/components/CmsPreviewEntryPicker.vue";
 import type { PageDSL } from "../../../../lib/types/nodes";
 import { useComposerCanvasControlBar } from "../composables/useComposerCanvasControlBar";
-import { computed, inject, ref } from "vue";
+import { inject, ref } from "vue";
 import { APP_INJECTION_KEYS } from "../../Core/types/injectionKeys";
 import type { CmsPreviewEntryContext } from "../../CMS/composables/useCmsPreviewEntryContext";
-import {
-  CANVAS_QUICK_TOOLS_KEY,
-} from "../../Stage/composables/useCanvasQuickToolsContext";
 
 interface Props {
   currentItemType?: "page" | "layout" | "component";
@@ -41,6 +38,7 @@ interface Props {
   showSelectionSizing?: boolean;
   showSelectionToolbar?: boolean;
   wireframeMode?: boolean;
+  showHtmlSections?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,6 +55,7 @@ const props = withDefaults(defineProps<Props>(), {
   showSelectionSizing: true,
   showSelectionToolbar: true,
   wireframeMode: false,
+  showHtmlSections: false,
 });
 const { t } = useStudioI18n();
 
@@ -70,6 +69,7 @@ const emit = defineEmits<{
   "update:show-selection-sizing": [value: boolean];
   "update:show-selection-toolbar": [value: boolean];
   "update:wireframe-mode": [value: boolean];
+  "update:show-html-sections": [value: boolean];
 }>();
 
 const {
@@ -132,11 +132,6 @@ const showLayoutSlotGroups = inject(
   ref(true),
 );
 const activeLayoutSlot = inject(APP_INJECTION_KEYS.activeLayoutSlot, null);
-const canvasQuickTools = inject(CANVAS_QUICK_TOOLS_KEY, null);
-const quickSelectionSize = computed(
-  () => canvasQuickTools?.value.selectionSizeLabel ?? "",
-);
-
 function handleShowSlotGroupsUpdate(value: boolean): void {
   showLayoutSlotGroups.value = value;
   if (!value) activeLayoutSlot?.resetToPageScope();
@@ -147,7 +142,7 @@ function handleShowSlotGroupsUpdate(value: boolean): void {
   <TooltipProvider>
     <PanelHeader test-id="composer-canvas-control-bar" class="overflow-hidden">
       <div
-        class="grid w-full min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2"
+        class="relative grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2"
       >
         <!-- Left: undo/redo, markup preview -->
         <div class="flex min-w-0 items-center gap-1 justify-self-start">
@@ -186,21 +181,16 @@ function handleShowSlotGroupsUpdate(value: boolean): void {
           </Tooltip>
 
           <StageMarkupPreviewPopover variant="toolbar" />
-          <span
-            class="h-0 w-0 shrink-0"
-            aria-hidden="true"
-            data-selection-toolbar-anchor
-          />
-          <span
-            v-if="quickSelectionSize"
-            class="ml-2 whitespace-nowrap rounded-sm bg-primary px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-4 tabular-nums text-primary-foreground shadow-sm"
-            aria-label="Selected element dimensions"
-            data-testid="composer-selection-size"
-          >{{ quickSelectionSize }}</span>
         </div>
 
-        <!-- Middle: CMS preview context, viewport, zoom -->
-        <div class="flex min-w-0 shrink items-center gap-2 justify-self-center">
+        <span
+          class="absolute left-1/2 top-1/2 h-0 w-0 shrink-0"
+          aria-hidden="true"
+          data-selection-toolbar-anchor
+        />
+
+        <!-- Right of center: CMS preview context, viewport, zoom -->
+        <div class="flex min-w-0 shrink items-center gap-2 justify-self-end">
           <div
             v-if="cmsPreviewEntryContext?.showCmsEntryHeader.value"
             class="min-w-0 max-w-[20rem]"
@@ -370,6 +360,7 @@ function handleShowSlotGroupsUpdate(value: boolean): void {
             :show-selection-sizing="props.showSelectionSizing"
             :show-selection-toolbar="props.showSelectionToolbar"
             :wireframe-mode="props.wireframeMode"
+            :show-html-sections="props.showHtmlSections"
             :is-published="props.currentPage?.status === 'published'"
             :live-page-href="livePageHref"
             :show-slot-groups="showLayoutSlotGroups"
@@ -377,6 +368,7 @@ function handleShowSlotGroupsUpdate(value: boolean): void {
             @update:show-selection-sizing="emit('update:show-selection-sizing', $event)"
             @update:show-selection-toolbar="emit('update:show-selection-toolbar', $event)"
             @update:wireframe-mode="emit('update:wireframe-mode', $event)"
+            @update:show-html-sections="emit('update:show-html-sections', $event)"
             @update:show-slot-groups="handleShowSlotGroupsUpdate"
             @unpublish="emit('unpublish')"
           />

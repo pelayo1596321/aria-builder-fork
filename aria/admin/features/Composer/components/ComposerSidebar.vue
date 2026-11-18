@@ -224,6 +224,7 @@ const setEditingTab = (tab: StageEditingTab) => {
 };
 
 const handleOpenAddElements = (): void => {
+  emit("update:open", true);
   setEditingTab("add-elements");
 };
 
@@ -300,6 +301,9 @@ onOpenAddElements(handleOpenAddElements);
 defineExpose({
   expandAncestorsInLayers: (nodeId: string) => {
     layerPanelRef.value?.expandAncestors(nodeId);
+  },
+  expandNodeAndAncestorsInLayers: (nodeId: string) => {
+    layerPanelRef.value?.expandNodeAndAncestors(nodeId);
   },
   openQuickSwitch: () => {
     quickSwitchRef.value?.open();

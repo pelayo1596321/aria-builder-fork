@@ -35,6 +35,10 @@ import type { ExecuteNodeEventOperation } from "./shared/nodeEventHistory";
 import { useShellSignalBridge } from "../../Core";
 import { useSiteSettings } from "../../../composables/useSiteSettings";
 import { log } from "@/lib/utils/logger";
+import {
+  recordQuickAddElementUsage,
+  resolveQuickAddUsageId,
+} from "../../Blocks/composables/quickAddElements";
 import type { useEditorNodeRegistry } from "../../Core/composables/useEditorNodeRegistry";
 
 interface UseNodeComponentHandlersOptions {
@@ -554,6 +558,9 @@ export function useNodeComponentHandlers(
       toast.error(insertResult.message);
       return;
     }
+
+    const usageId = resolveQuickAddUsageId(type, data);
+    if (usageId) recordQuickAddElementUsage(usageId);
 
     handleElementAdded(newNode);
     toast.success(`Added ${type}${parentId ? " (nested)" : ""}`);

@@ -332,10 +332,16 @@ export function useCanvasEvents(
       return;
     }
 
-    // Delete selected node with Delete/Backspace
+    // Delete selected node with Delete/Supr or Backspace
     if (
       selected.value &&
-      (event.key === "Delete" || event.key === "Backspace")
+      (
+        event.key === "Delete" ||
+        event.key === "Del" ||
+        event.key === "Supr" ||
+        event.code === "Delete" ||
+        event.key === "Backspace"
+      )
     ) {
       // Prevent default browser behavior
       event.preventDefault();

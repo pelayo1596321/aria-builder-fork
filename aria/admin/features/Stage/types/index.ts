@@ -10,6 +10,7 @@ import type {
   LayoutDSL,
   PageDSL,
 } from "../../../../lib/types/nodes";
+import type { AddElementPayload, GridCellMergePayload } from "../../../types/app";
 import type { EditableItemType } from "../../Core/types/router";
 import type { LayoutInspectorMetadata } from "../../Core/types/layout";
 
@@ -173,6 +174,7 @@ export interface CanvasControlBarProps {
   showSelectionSizing: boolean;
   showSelectionToolbar: boolean;
   wireframeMode: boolean;
+  showHtmlSections: boolean;
 }
 
 export interface StageAppProps {
@@ -191,6 +193,7 @@ export interface StageAppProps {
   showSelectionSizing: boolean;
   showSelectionToolbar: boolean;
   wireframeMode: boolean;
+  showHtmlSections: boolean;
   currentLayout: LayoutDSL | null;
   stageKey: string;
   currentItemType: EditableItemType;
@@ -213,9 +216,13 @@ export interface StageAppListeners {
   "update:wireframe-mode": (value: boolean) => void;
   "update:show-selection-sizing": (value: boolean) => void;
   "update:show-selection-toolbar": (value: boolean) => void;
+  "update:show-html-sections": (value: boolean) => void;
   "stage-ready": () => void;
   "select-block": (selection: StageSelectBlockInput) => void;
-  "add-block": (block: BuilderNode, parentId: string | null) => void;
+  "add-element": (payload: AddElementPayload) => void;
+  "add-block": (block: BuilderNode, parentId: string | null, insertionIndex?: number) => void;
+  "add-blocks": (blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }) => void;
+  "merge-grid-cells": (payload: GridCellMergePayload) => void;
   "delete-block": (nodeId: string) => void;
   "duplicate-block": (nodeId: string) => void;
   "detach-component": (nodeId: string) => Promise<void> | void;
@@ -245,9 +252,13 @@ export interface StageAppEmits {
   "update:wireframe-mode": [value: boolean];
   "update:show-selection-sizing": [value: boolean];
   "update:show-selection-toolbar": [value: boolean];
+  "update:show-html-sections": [value: boolean];
   "stage-ready": [];
   "select-block": [selection: StageSelectBlockInput];
-  "add-block": [block: BuilderNode, parentId: string | null];
+  "add-element": [payload: AddElementPayload];
+  "add-block": [block: BuilderNode, parentId: string | null, insertionIndex?: number];
+  "add-blocks": [blocks: BuilderNode[], parentId: string | null, insertionIndices: number[], gridMutation?: { rows: number; columns: number; existingPlacements: Array<{ nodeId: string; row: number; column: number; rowSpan: number; columnSpan: number }> }];
+  "merge-grid-cells": [payload: GridCellMergePayload];
   "delete-block": [nodeId: string];
   "duplicate-block": [nodeId: string];
   "detach-component": [nodeId: string];

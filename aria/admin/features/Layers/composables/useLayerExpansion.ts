@@ -403,6 +403,37 @@ export function useLayerExpansion(options: UseLayerExpansionOptions) {
     expandedNodes.value.add(slotGroupKey ?? currentVirtualSlot.value);
   };
 
+  const expandNodeAndAncestors = (nodeId: string): void => {
+    expandAncestors(nodeId);
+
+    const findNode = (
+      nodes: readonly BuilderNode[],
+    ): BuilderNode | undefined => {
+      for (const node of nodes) {
+        if (node.id === nodeId) return node;
+        if (node.children?.length) {
+          const found = findNode(node.children);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
+    let node = findNode(currentPageNodes.value);
+    if (!node && resolveSlotRoots) {
+      for (const slot of currentLayout.value?.slots ?? []) {
+        node = findNode(resolveSlotRoots(slot.name));
+        if (node) break;
+      }
+    }
+
+    if (node?.children?.length) {
+      expandedNodes.value.add(nodeId);
+      collapseState.value.set(nodeId, "expanded");
+      refreshIsAllExpandedFromSnapshot();
+    }
+  };
+
   watch(currentItemSlug, () => {
     expandAllRunId += 1;
     isLayerTreeBusy.value = false;
@@ -470,6 +501,7 @@ export function useLayerExpansion(options: UseLayerExpansionOptions) {
     requestToggleExpand,
     toggleAll,
     expandAncestors,
+    expandNodeAndAncestors,
     runInitialExpansion,
   };
 }

@@ -6,6 +6,7 @@ import type { OperationType, useHistory } from "../../History";
 const EditorMutationHistoryTypeSchema = z.enum([
   "insert-node",
   "reorder-nodes",
+  "update-node-styles",
   "update-node-props",
 ]);
 

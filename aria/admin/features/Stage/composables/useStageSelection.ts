@@ -16,14 +16,14 @@ export interface UseStageSelectionOptions {
   pageBlocks: Ref<BuilderNode[]>;
   selectedLayoutRegion: Ref<string | null>;
   openLayersEditorTab: () => void;
-  handleAddBlock: (block: BuilderNode, parentId: string | null) => void;
+  handleAddBlock: (block: BuilderNode, parentId: string | null, insertionIndex?: number) => void;
 }
 
 export interface UseStageSelectionReturn {
   handleClearSelection: () => void;
   handleBackgroundClick: () => void;
   handleStageSelectBlock: (selection: StageSelectBlockInput) => void;
-  handleStageAddBlock: (block: BuilderNode, parentId: string | null) => void;
+  handleStageAddBlock: (block: BuilderNode, parentId: string | null, insertionIndex?: number) => void;
   handleEditLayoutRegion: (regionId: string) => void;
 }
 
@@ -96,8 +96,10 @@ export function useStageSelection(
   const handleStageAddBlock = (
     block: BuilderNode,
     parentId: string | null,
+    insertionIndex?: number,
   ): void => {
-    handleAddBlock(block, parentId);
+    handleAddBlock(block, parentId, insertionIndex);
+    openLayersEditorTab();
   };
 
   const handleEditLayoutRegion = (regionId: string): void => {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { BuilderNode } from "../../../../lib/types/nodes";
 import { BuilderNodeSchema } from "../../../../lib/schemas/nodes";
 import { JsonValueSchema } from "../../../../lib/schemas/json";
-import type { ReorderOperation, ReorderNodePayload } from "../../../types/app";
+import type { GridCellMergePayload, ReorderOperation, ReorderNodePayload } from "../../../types/app";
 import type { LayersReorderData } from "../../../types/app";
 import type { useHistory } from "../../History";
 import { cloneDeep } from "../utils";
@@ -28,7 +28,24 @@ export interface EditorMutationHandlersDeps {
 }
 
 export interface EditorMutationHandlersReturn {
-  handleAddBlock: (newBlock: BuilderNode, parentId: string | null) => void;
+  handleAddBlock: (newBlock: BuilderNode, parentId: string | null, insertionIndex?: number) => void;
+  handleAddBlocks: (
+    newBlocks: BuilderNode[],
+    parentId: string | null,
+    insertionIndices: number[],
+    gridMutation?: {
+      rows: number;
+      columns: number;
+      existingPlacements: Array<{
+        nodeId: string;
+        row: number;
+        column: number;
+        rowSpan: number;
+        columnSpan: number;
+      }>;
+    },
+  ) => void;
+  handleMergeGridCells: (payload: GridCellMergePayload) => void;
   handleReorderBlock: (operation: ReorderOperation) => void;
   handleReorderNode: (payload: ReorderNodePayload) => void;
   handleNodePropUpdate: (
@@ -50,8 +67,29 @@ const AddBlockInputSchema = z
   .object({
     newBlock: BuilderNodeSchema,
     parentId: z.string().trim().min(1).nullable(),
+    insertionIndex: z.number().int().nonnegative().optional(),
   })
   .strict();
+
+const AddBlocksInputSchema = z
+  .object({
+    newBlocks: z.array(BuilderNodeSchema).min(1),
+    parentId: z.string().trim().min(1).nullable(),
+    insertionIndices: z.array(z.number().int().nonnegative()),
+    gridMutation: z.object({
+      rows: z.number().int().min(1),
+      columns: z.number().int().min(1),
+      existingPlacements: z.array(z.object({
+        nodeId: z.string().trim().min(1),
+        row: z.number().int().nonnegative(),
+        column: z.number().int().nonnegative(),
+        rowSpan: z.number().int().min(1),
+        columnSpan: z.number().int().min(1),
+      }).strict()),
+    }).strict().optional(),
+  })
+  .strict()
+  .refine((input) => input.newBlocks.length === input.insertionIndices.length);
 
 const NodePropUpdateInputSchema = z
   .object({
@@ -61,6 +99,16 @@ const NodePropUpdateInputSchema = z
     description: z.string().trim().min(1).optional(),
   })
   .strict();
+
+const GridCellMergeInputSchema = z.object({
+  gridId: z.string().trim().min(1),
+  cellId: z.string().trim().min(1),
+  neighborId: z.string().trim().min(1),
+  row: z.number().int().nonnegative(),
+  column: z.number().int().nonnegative(),
+  rowSpan: z.number().int().min(1),
+  columnSpan: z.number().int().min(1),
+}).strict();
 
 function findParentArray(
   nodes: BuilderNode[],
@@ -143,8 +191,13 @@ export function useEditorMutationHandlers(
   const handleAddBlock = (
     newBlock: BuilderNode,
     parentId: string | null,
+    requestedInsertionIndex?: number,
   ): void => {
-    const parsedInput = AddBlockInputSchema.safeParse({ newBlock, parentId });
+    const parsedInput = AddBlockInputSchema.safeParse({
+      newBlock,
+      parentId,
+      insertionIndex: requestedInsertionIndex,
+    });
     if (!parsedInput.success) {
       log("warn", "[EditorMutation] Invalid add-block payload", {
         issues: parsedInput.error.issues,
@@ -155,9 +208,10 @@ export function useEditorMutationHandlers(
 
     const validatedBlock = parsedInput.data.newBlock;
     const validatedParentId = parsedInput.data.parentId;
+    const requestedIndex = parsedInput.data.insertionIndex;
 
     if (!validatedParentId) {
-      const insertIndex = pageBlocks.value.length;
+      const insertIndex = Math.min(requestedIndex ?? pageBlocks.value.length, pageBlocks.value.length);
 
       const executed = executeEditorMutation(
         {
@@ -200,7 +254,7 @@ export function useEditorMutationHandlers(
       parent.children = [];
     }
 
-    const insertIndex = parent.children.length;
+    const insertIndex = Math.min(requestedIndex ?? parent.children.length, parent.children.length);
 
     const executed = executeEditorMutation(
       {
@@ -228,6 +282,230 @@ export function useEditorMutationHandlers(
 
     hasUnsavedChanges.value = true;
     toast.success(`Added ${validatedBlock.type} block`);
+  };
+
+  const handleAddBlocks = (
+    newBlocks: BuilderNode[],
+    parentId: string | null,
+    insertionIndices: number[],
+    gridMutation?: {
+      rows: number;
+      columns: number;
+      existingPlacements: Array<{
+        nodeId: string;
+        row: number;
+        column: number;
+        rowSpan: number;
+        columnSpan: number;
+      }>;
+    },
+  ): void => {
+    const parsedInput = AddBlocksInputSchema.safeParse({
+      newBlocks,
+      parentId,
+      insertionIndices,
+      gridMutation,
+    });
+    if (!parsedInput.success) {
+      log("warn", "[EditorMutation] Invalid add-blocks payload", {
+        issues: parsedInput.error.issues,
+      });
+      toast.error("Could not insert grid cells");
+      return;
+    }
+
+    const validatedBlocks = parsedInput.data.newBlocks;
+    const validatedParentId = parsedInput.data.parentId;
+    const parent = validatedParentId
+      ? nodeManipulation.findNodeById(pageBlocks.value, validatedParentId)
+      : null;
+    if (validatedParentId && !parent) {
+      toast.error("Could not insert grid cells: parent not found");
+      return;
+    }
+
+    if (parent && !parent.children) parent.children = [];
+    const destination = parent?.children ?? pageBlocks.value;
+    const gridNode = parsedInput.data.gridMutation && validatedParentId
+      ? nodeManipulation.findNodeById(pageBlocks.value, validatedParentId)
+      : null;
+    if (parsedInput.data.gridMutation && (!gridNode || gridNode !== parent)) {
+      toast.error("Could not update grid structure");
+      return;
+    }
+
+    const previousChildren = [...destination];
+    const nextChildren = [...previousChildren];
+    validatedBlocks.forEach((block, index) => {
+      const insertionIndex = Math.min(
+        parsedInput.data.insertionIndices[index],
+        nextChildren.length,
+      );
+      nextChildren.splice(insertionIndex, 0, block);
+    });
+
+    const gridUpdate = parsedInput.data.gridMutation;
+    const previousGridStyles = gridNode ? cloneDeep(gridNode.styles) : null;
+    const previousCellStyles = new Map(
+      (gridNode?.children ?? []).map((child) => [child.id, cloneDeep(child.styles)]),
+    );
+    const nextGridStyles = gridNode && gridUpdate
+      ? {
+          ...cloneDeep(gridNode.styles),
+          gridTemplateColumns: {
+            ...(gridNode.styles.gridTemplateColumns ?? {}),
+            base: `repeat(${gridUpdate.columns}, minmax(0, 1fr))`,
+          },
+          gridTemplateRows: {
+            ...(gridNode.styles.gridTemplateRows ?? {}),
+            base: `repeat(${gridUpdate.rows}, minmax(6rem, auto))`,
+          },
+        }
+      : null;
+    const nextCellStyles = new Map<string, BuilderNode["styles"]>();
+    if (gridNode && gridUpdate) {
+      for (const placement of gridUpdate.existingPlacements) {
+        const child = gridNode.children?.find((entry) => entry.id === placement.nodeId);
+        if (!child) continue;
+        nextCellStyles.set(child.id, {
+          ...cloneDeep(child.styles),
+          gridColumn: {
+            ...(child.styles.gridColumn ?? {}),
+            base: placement.columnSpan > 1
+              ? `${placement.column + 1} / span ${placement.columnSpan}`
+              : String(placement.column + 1),
+          },
+          gridRow: {
+            ...(child.styles.gridRow ?? {}),
+            base: placement.rowSpan > 1
+              ? `${placement.row + 1} / span ${placement.rowSpan}`
+              : String(placement.row + 1),
+          },
+        });
+      }
+    }
+
+    const applyState = (
+      children: BuilderNode[],
+      gridStyles: BuilderNode["styles"] | null,
+      cellStyles: Map<string, BuilderNode["styles"]>,
+    ): void => {
+      if (parent) {
+        if (!parent.children) parent.children = [];
+        parent.children.splice(0, parent.children.length, ...children);
+      } else {
+        pageBlocks.value.splice(0, pageBlocks.value.length, ...children);
+      }
+      if (gridNode && gridStyles) gridNode.styles = cloneDeep(gridStyles);
+      if (gridNode) {
+        for (const child of gridNode.children ?? []) {
+          const styles = cellStyles.get(child.id);
+          if (styles) child.styles = cloneDeep(styles);
+        }
+      }
+    };
+
+    const executed = executeEditorMutation(
+      {
+        type: "insert-node",
+        description: gridUpdate ? "Insert grid row or column" : "Add blocks",
+        affectedNodeIds: [
+          ...(gridNode ? [gridNode.id] : []),
+          ...validatedBlocks.map((block) => block.id),
+          ...(gridUpdate?.existingPlacements.map((placement) => placement.nodeId) ?? []),
+        ],
+      },
+      {
+        undo: () => {
+          applyState(previousChildren, previousGridStyles, previousCellStyles);
+          focusNode(null);
+        },
+        redo: () => {
+          applyState(nextChildren, nextGridStyles, nextCellStyles);
+          focusNode(validatedBlocks.at(-1)?.id ?? null);
+        },
+      },
+    );
+
+    if (!executed) {
+      toast.error("Could not insert grid cells");
+      return;
+    }
+
+    hasUnsavedChanges.value = true;
+    toast.success(`Added ${validatedBlocks.length} grid cells`);
+  };
+
+  const handleMergeGridCells = (payload: GridCellMergePayload): void => {
+    const parsed = GridCellMergeInputSchema.safeParse(payload);
+    if (!parsed.success) {
+      log("warn", "[EditorMutation] Invalid grid-cell merge payload", {
+        issues: parsed.error.issues,
+      });
+      toast.error("Could not merge grid cells");
+      return;
+    }
+
+    const { gridId, cellId, neighborId, row, column, rowSpan, columnSpan } = parsed.data;
+    const beforeBlocks = cloneDeep(pageBlocks.value);
+    const nextBlocks = cloneDeep(pageBlocks.value);
+    const grid = nodeManipulation.findNodeById(nextBlocks, gridId);
+    if (!grid || !Array.isArray(grid.children)) {
+      toast.error("Could not merge grid cells: grid not found");
+      return;
+    }
+
+    const cell = grid.children.find((child) => child.id === cellId);
+    const neighborIndex = grid.children.findIndex((child) => child.id === neighborId);
+    const neighbor = grid.children[neighborIndex];
+    if (!cell || !neighbor || neighbor.children?.length) {
+      toast.error("Could not merge grid cells");
+      return;
+    }
+
+    const nextGridRow = rowSpan > 1 ? `${row + 1} / span ${rowSpan}` : String(row + 1);
+    const nextGridColumn = columnSpan > 1
+      ? `${column + 1} / span ${columnSpan}`
+      : String(column + 1);
+    cell.styles = {
+      ...cloneDeep(cell.styles),
+      gridRow: {
+        ...(cell.styles.gridRow ?? {}),
+        base: nextGridRow,
+      },
+      gridColumn: {
+        ...(cell.styles.gridColumn ?? {}),
+        base: nextGridColumn,
+      },
+    };
+    grid.children.splice(neighborIndex, 1);
+
+    const executed = executeEditorMutation(
+      {
+        type: "update-node-styles",
+        description: "Merge adjacent grid cells",
+        affectedNodeIds: [gridId, cellId, neighborId],
+      },
+      {
+        undo: () => {
+          pageBlocks.value = cloneDeep(beforeBlocks);
+          focusNode(null);
+        },
+        redo: () => {
+          pageBlocks.value = cloneDeep(nextBlocks);
+          focusNode(cellId);
+        },
+      },
+    );
+
+    if (!executed) {
+      toast.error("Could not merge grid cells");
+      return;
+    }
+
+    hasUnsavedChanges.value = true;
+    focusNode(cellId);
+    toast.success("Merged grid cells");
   };
 
   const handleReorderBlock = (operation: ReorderOperation): void => {
@@ -346,6 +624,8 @@ export function useEditorMutationHandlers(
 
   return {
     handleAddBlock,
+    handleAddBlocks,
+    handleMergeGridCells,
     handleReorderBlock,
     handleReorderNode,
     handleNodePropUpdate,

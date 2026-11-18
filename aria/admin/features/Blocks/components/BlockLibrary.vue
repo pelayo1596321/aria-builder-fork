@@ -50,7 +50,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -131,7 +130,6 @@ const props = withDefaults(
 );
 const { t } = useStudioI18n();
 const sectionTagDialogOpen = ref(false);
-const selectedSectionTag = ref("section");
 const pendingSectionInsert = ref<AddElementPayload | null>(null);
 const sectionTagOptions = [
   "div",
@@ -145,6 +143,34 @@ const sectionTagOptions = [
   "figure",
   "address",
 ] as const;
+const selectedSectionTag = ref<(typeof sectionTagOptions)[number]>("div");
+const sectionTagDescriptions: Record<(typeof sectionTagOptions)[number], string> = {
+  div: "A neutral tag for all types of content. Recommended when no other tag better describes the section.",
+  section: "A group of related content, usually with its own heading, such as an overview or feature area.",
+  article: "A self-contained piece of content that could stand on its own, such as a post, news story, or product review.",
+  main: "The primary content of the page, excluding shared areas such as the site header, navigation, and footer.",
+  aside: "Supporting content related to the main content, such as a sidebar, related links, or a callout.",
+  nav: "A group of important navigation links that help people move around the site or page.",
+  header: "Introductory content for a page or section, such as a title, logo, or short introduction.",
+  footer: "Closing or supporting information for a page or section, such as credits, contact details, or related links.",
+  figure: "A self-contained image, illustration, diagram, or other media, optionally with a caption.",
+  address: "Contact information for the person or organization connected to the content.",
+};
+const sectionTagOptionHints: Record<(typeof sectionTagOptions)[number], string> = {
+  div: "General content",
+  section: "Related content",
+  article: "Standalone content",
+  main: "Main content",
+  aside: "Supporting content",
+  nav: "Navigation",
+  header: "Introductory content",
+  footer: "Closing information",
+  figure: "Media with caption",
+  address: "Contact information",
+};
+const selectedSectionTagDescription = computed(
+  () => sectionTagDescriptions[selectedSectionTag.value],
+);
 
 const emit = defineEmits<{
   addElement: [elementData: AddElementPayload];
@@ -491,7 +517,7 @@ function handleAddElement(element: LibraryElement): void {
 
 function requestSectionInsert(payload: AddElementPayload): void {
   pendingSectionInsert.value = payload;
-  selectedSectionTag.value = "section";
+  selectedSectionTag.value = "div";
   sectionTagDialogOpen.value = true;
 }
 
@@ -519,30 +545,50 @@ function confirmSectionInsert(): void {
       @update:open="handleSectionTagDialogOpenChange"
     >
       <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Choose a section tag</DialogTitle>
-          <DialogDescription>
-            Choose the HTML role for this section. It will be set automatically
-            when the section is added.
-          </DialogDescription>
-        </DialogHeader>
         <div class="grid gap-2 py-2">
-          <Label for="section-html-tag">HTML tag</Label>
+          <DialogHeader class="mb-0">
+            <DialogTitle class="text-lg">HTML tag</DialogTitle>
+          </DialogHeader>
           <Select v-model="selectedSectionTag">
             <SelectTrigger id="section-html-tag">
-              <SelectValue />
+              <SelectValue class="justify-center">
+                <span class="flex items-center gap-3">
+                  <span>&lt;{{ selectedSectionTag }}&gt;</span>
+                  <span class="text-muted-foreground">
+                    {{ sectionTagOptionHints[selectedSectionTag] }}
+                  </span>
+                </span>
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent class="w-[var(--reka-select-trigger-width)]">
               <SelectItem
                 v-for="tag in sectionTagOptions"
                 :key="tag"
                 :value="tag"
               >
-                &lt;{{ tag }}&gt;
+                <span class="mx-auto grid w-60 grid-cols-[5rem_1fr] items-center gap-x-3">
+                  <span class="text-right">&lt;{{ tag }}&gt;</span>
+                  <span class="text-left text-xs text-muted-foreground">
+                    {{ sectionTagOptionHints[tag] }}
+                  </span>
+                </span>
               </SelectItem>
             </SelectContent>
           </Select>
+          <p class="rounded-sm border border-border/70 bg-muted/20 px-3 py-2 text-sm leading-relaxed text-foreground">
+            {{ selectedSectionTagDescription }}
+          </p>
         </div>
+        <DialogDescription class="text-xs leading-relaxed">
+          <span class="block">
+            These choices all work the same in the editor. They simply describe
+            the content and help organize your page; they do not add extra
+            settings.
+          </span>
+          <span class="mt-2 block">
+            If you are not sure which one to choose, choose &lt;div&gt;.
+          </span>
+        </DialogDescription>
         <DialogFooter>
           <Button
             variant="outline"

@@ -51,6 +51,7 @@ defineExpose({
         @update:show-selection-sizing="emit('update:show-selection-sizing', $event)"
         @update:show-selection-toolbar="emit('update:show-selection-toolbar', $event)"
         @update:wireframe-mode="emit('update:wireframe-mode', $event)"
+        @update:show-html-sections="emit('update:show-html-sections', $event)"
       />
       <div
         ref="canvasAreaRef"
@@ -76,6 +77,7 @@ defineExpose({
           :show-selection-sizing="props.showSelectionSizing"
           :show-selection-toolbar="props.showSelectionToolbar"
           :wireframe-mode="props.wireframeMode"
+          :show-html-sections="props.showHtmlSections"
           :current-layout="props.currentLayout"
           :stage-key="props.stageKey"
           :current-item-type="props.currentItemType"
@@ -92,7 +94,10 @@ defineExpose({
           @update:wireframe-mode="emit('update:wireframe-mode', $event)"
           @stage-ready="emit('stage-ready')"
           @select-block="emit('select-block', $event)"
-          @add-block="(block, parentId) => emit('add-block', block, parentId)"
+          @add-element="emit('add-element', $event)"
+          @merge-grid-cells="emit('merge-grid-cells', $event)"
+          @add-block="(block, parentId, insertionIndex) => emit('add-block', block, parentId, insertionIndex)"
+          @add-blocks="(blocks, parentId, insertionIndices, gridMutation) => emit('add-blocks', blocks, parentId, insertionIndices, gridMutation)"
           @delete-block="emit('delete-block', $event)"
           @duplicate-block="emit('duplicate-block', $event)"
           @detach-component="emit('detach-component', $event)"
