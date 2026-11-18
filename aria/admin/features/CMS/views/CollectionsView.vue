@@ -52,7 +52,7 @@ import {
 } from "../../../../lib/cms/actionSchemas";
 import { useCmsCapabilities } from "../composables/useCmsCapabilities";
 import { useCmsCollectionsTable } from "../composables/useCmsCollectionsTable";
-import { useCollectionsViewState } from "..";
+import { useCollectionsViewState } from "../composables/useCollectionsViewState";
 import CmsCollectionContextMenuContent from "../components/CmsCollectionContextMenuContent.vue";
 import CmsCollectionGridCard from "../components/CmsCollectionGridCard.vue";
 import {

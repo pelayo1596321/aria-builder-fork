@@ -93,27 +93,23 @@ export const studioRoutes: RouteRecordRaw[] = [
   // Collections (lazy from CMS feature)
   {
     path: "/collections",
-    component: () =>
-      import("../CMS/studio").then((module) => module.CmsWorkspaceView),
+    component: () => import("../CMS/views/CmsWorkspaceView.vue"),
     meta: { section: "collections", title: "Collections", cmsDepth: 1 },
     children: [
       {
         path: "",
-        component: () =>
-          import("../CMS/studio").then((module) => module.CollectionsView),
+        component: () => import("../CMS/views/CollectionsView.vue"),
         meta: { section: "collections", title: "Collections", cmsDepth: 1 },
       },
       {
         path: ":name/entries/:entrySlugOrId",
         name: "cms-entry-detail",
-        component: () =>
-          import("../CMS/studio").then((module) => module.EntryDetailView),
+        component: () => import("../CMS/views/EntryDetailView.vue"),
         meta: { section: "collections", title: "Entry", cmsDepth: 3 },
       },
       {
         path: ":name/schema",
-        component: () =>
-          import("../CMS/studio").then((module) => module.CollectionDetailView),
+        component: () => import("../CMS/views/CollectionDetailView.vue"),
         meta: {
           section: "collections",
           title: "Collection Configure",
@@ -122,8 +118,7 @@ export const studioRoutes: RouteRecordRaw[] = [
       },
       {
         path: ":name/settings",
-        component: () =>
-          import("../CMS/studio").then((module) => module.CollectionDetailView),
+        component: () => import("../CMS/views/CollectionDetailView.vue"),
         meta: {
           section: "collections",
           title: "Collection Configure",
@@ -132,8 +127,7 @@ export const studioRoutes: RouteRecordRaw[] = [
       },
       {
         path: ":name",
-        component: () =>
-          import("../CMS/studio").then((module) => module.CollectionDetailView),
+        component: () => import("../CMS/views/CollectionDetailView.vue"),
         meta: { section: "collections", title: "Collection", cmsDepth: 2 },
       },
     ],

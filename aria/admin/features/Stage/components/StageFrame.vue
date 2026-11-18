@@ -496,7 +496,6 @@ function syncHtmlSectionGuides(doc: Document): void {
           borderRadius: "3px",
           color: entry.isPageArea ? "#ffffff" : "rgba(0, 112, 104, 0.9)",
           background: entry.isPageArea ? "#008978" : "rgba(255, 255, 255, 0.9)",
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
           font: `${entry.isPageArea ? 600 : 400} 11px/16px ui-sans-serif, system-ui, sans-serif`,
         });
         labelGroup.appendChild(badge);
