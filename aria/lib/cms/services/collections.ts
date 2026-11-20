@@ -31,6 +31,8 @@ import {
 import { resolvePagePolicyUpdate } from "../../pages/policy";
 import { normalizeContentLocalization } from "../../localization/contentLocale";
 import { matchCmsUrlPattern } from "../routing";
+import { normalizeEntryFieldOrderForCollection } from "../entryFieldOrder";
+import { isCoverImageField } from "../systemFields";
 import {
   rebuildCmsCollectionSearchDocuments,
   removeCmsCollectionSearchDocuments,
@@ -507,6 +509,7 @@ export async function createCollectionOnAdapter(
     updatedAt: timestamp,
   });
 
+
   await assertCollectionRouteSafe(adapter, collection, "create");
   const saved = await adapter.saveCollection(collection);
   await syncCmsCollectionSearchDocument(adapter, saved);
@@ -524,6 +527,12 @@ export async function updateCollectionOnAdapter(
   input: UpdateCollectionInput,
 ): Promise<AriaCollection> {
   const current = await getCollectionFromAdapter(adapter, input.id);
+
+  if (current.name === "product" &&
+      ((input.patch.kind !== undefined && input.patch.kind !== current.kind) ||
+       (input.patch.scope !== undefined && input.patch.scope !== current.scope))) {
+    throw new CmsServiceError("VALIDATION_ERROR", "The Product collection kind and scope cannot be changed.");
+  }
 
   if (
     input.expectedUpdatedAt &&
@@ -590,6 +599,30 @@ export async function updateCollectionOnAdapter(
     updatedAt: timestamp,
   });
 
+  if (current.name === "product") {
+    const mainItems = (value: AriaCollection) => normalizeEntryFieldOrderForCollection(value).filter((item) => {
+      if (item.kind === "system") return true;
+      const field = value.schema.fields.find((candidate) => candidate.key === item.key);
+      return (item.placement ?? (field && isCoverImageField(field) ? "sidebar" : "main")) === "main";
+    });
+    const previous = mainItems(current);
+    const previousIds = new Set(previous.map((item) => `${item.kind}:${item.key}`));
+    const next = mainItems(collection).filter((item) => previousIds.has(`${item.kind}:${item.key}`));
+    const normalize = (items: typeof previous) => items.map((item) => item.kind === "system"
+      ? { kind: item.kind, key: item.key }
+      : { kind: item.kind, key: item.key, width: item.width ?? "full" });
+    const fieldsChanged = previous.some((item) => {
+      if (item.kind !== "field") return false;
+      const before = current.schema.fields.find((field) => field.key === item.key);
+      const after = collection.schema.fields.find((field) => field.key === item.key);
+      return JSON.stringify(before) !== JSON.stringify(after);
+    });
+    if (fieldsChanged || JSON.stringify(normalize(previous)) !== JSON.stringify(normalize(next))) {
+      throw new CmsServiceError("VALIDATION_ERROR", "Product main content fields cannot be edited, removed or moved.");
+    }
+  }
+
+
   let effectiveCollections: AriaCollection[] | null = null;
   let oppositeRoleClears = new Map<string, AriaCollection>();
   const pageRoleOverrides = new Map<string, CmsSyncedPageRole>();
@@ -642,6 +675,9 @@ export async function deleteCollectionOnAdapter(
   updatedPageSlugs: string[];
 }> {
   const collection = await getCollectionFromAdapter(adapter, id);
+  if (collection.name === "product") {
+    throw new CmsServiceError("VALIDATION_ERROR", "The Product collection cannot be deleted.");
+  }
   const cleanup = await cleanupCollectionPageBindingsOnAdapter(
     adapter,
     collection,

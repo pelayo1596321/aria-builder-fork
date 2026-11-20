@@ -14,7 +14,7 @@ export type { SettingsTab };
 export { settingsTabGroups, settingsTabs };
 
 const QUERY_KEY = "settings" as const;
-const DEFAULT_TAB: SettingsTab = "general";
+const DEFAULT_TAB: SettingsTab = "appearance";
 
 let controller: RouteQueryDialogReturn<SettingsTab> | null = null;
 
@@ -64,7 +64,8 @@ export function useSettingsDialog(): SettingsDialogReturn {
   }
 
   function open(tab?: SettingsTab, userId?: string) {
-    const targetTab = tab ?? controller?.value.value ?? DEFAULT_TAB;
+    const currentTab = controller?.value.value;
+    const targetTab = tab ?? (currentTab === "general" ? DEFAULT_TAB : currentTab) ?? DEFAULT_TAB;
     selectedUserId.value = userId ?? null;
     controller?.open(targetTab);
   }

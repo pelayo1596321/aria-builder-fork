@@ -467,9 +467,7 @@ function expandSidebarForGroup(groupId: string): void {
   void nextTick(() => {
     closeAllGroups();
     openGroups.value[groupId] = true;
-    if (groupId === "online-store") {
-      selectedSubmenuGroupOverride.value = groupId;
-    }
+    if (groupId === "online-store") navigateTo("/store-general");
   });
 }
 
@@ -500,21 +498,16 @@ function toggleSidebarGroup(groupId: string): void {
   if (groupId === "online-store") {
     if (openGroups.value[groupId]) {
       closeAllGroups();
-      selectedSubmenuGroupOverride.value = null;
       return;
     }
 
     closeAllGroups();
     openGroups.value[groupId] = true;
-    selectedSubmenuGroupOverride.value = groupId;
-    if (!isOnlineStoreRoute.value) {
-      const firstSubmenuPath = getFirstSubmenuPath(groupId);
-      if (firstSubmenuPath) router.navigateTo(firstSubmenuPath);
-    }
+    const firstSubmenuPath = getFirstSubmenuPath(groupId);
+    if (firstSubmenuPath) router.navigateTo(firstSubmenuPath);
     return;
   }
 
-  selectedSubmenuGroupOverride.value = null;
   const isOpening = !openGroups.value[groupId];
   toggleGroup(groupId);
   if (!isOpening) return;
@@ -525,7 +518,6 @@ function toggleSidebarGroup(groupId: string): void {
 
 function selectOnlineStoreChild(path: string): void {
   hideCollapsedSidebarHoverMenu();
-  selectedSubmenuGroupOverride.value = null;
 
   if (isCollapsed.value) {
     openGroups.value["online-store"] = true;
@@ -646,24 +638,12 @@ const sectionNavItems = computed(() => {
 });
 
 const onlineStoreChildren = computed(() => [
-  { label: "Dashboard", path: "/dashboard" },
-  { label: t("sidebar.pages"), path: "/pages" },
-  {
-    label: t("sidebar.components"),
-    path: "/components",
-  },
+  { label: "General", path: "/store-general" },
+  { label: "Appearance", path: "/appearance" },
+  { label: "Site structure", path: "/site-structure" },
   ...(isFeatureEnabled("studio.layouts")
     ? [{ label: t("sidebar.layouts"), path: "/layouts" }]
     : []),
-  {
-    label: t("sidebar.collections"),
-    path: "/collections",
-  },
-  { label: t("sidebar.media"), path: "/media" },
-  {
-    label: t("sidebar.design"),
-    path: "/design?colors",
-  },
 ]);
 type CollapsedSidebarHoverMenu = {
   title: string;
@@ -735,37 +715,64 @@ function hideCollapsedSidebarHoverMenu(): void {
 onBeforeUnmount(hideCollapsedSidebarHoverMenu);
 
 const commerceNavItems = [
-  { label: "Inicio", path: "/inicio", icon: "i-hugeicons:home-02" },
-  { label: "Pedidos", path: "/orders", icon: "i-hugeicons:invoice-01" },
-  { label: "Productos", path: "/products", icon: "i-hugeicons:tag-01" },
-  { label: "Clientes", path: "/customers", icon: "i-hugeicons:user-group" },
+  { label: "Home", path: "/inicio", icon: "i-hugeicons:home-02" },
+  { label: "Orders", path: "/orders", icon: "i-hugeicons:invoice-01" },
+  { label: "Products", path: "/products", icon: "i-hugeicons:tag-01" },
+  { label: "Customers", path: "/customers", icon: "i-hugeicons:user-group" },
   { label: "Marketing", path: "/marketing", icon: "i-hugeicons:megaphone-01" },
   {
-    label: "Descuentos",
+    label: "Discounts",
     path: "/discounts",
     icon: "i-hugeicons:discount-tag-01",
   },
-  { label: "Analíticas", path: "/reports", icon: "i-hugeicons:analytics-01" },
+  { label: "Analytics", path: "/reports", icon: "i-hugeicons:analytics-01" },
 ];
-const selectedSubmenuGroupOverride = ref<string | null>(null);
 const showCollapsedSubmenuPanel = ref(false);
 const isOnlineStoreRoute = computed(
   () =>
     route.path === "/dashboard" ||
+    route.path === "/store-general" ||
+    route.path === "/appearance" ||
+    route.path === "/site-structure" ||
     sectionNavItems.value.some(
       (item) => item.type === "group" && isGroupActive(item.path),
     ),
 );
 const secondaryPanel = useStudioSecondaryPanel();
+const isAppearanceRoute = computed(() =>
+  route.path === "/appearance" || route.path === "/design" || route.path.startsWith("/design/"),
+);
+
+const siteStructureItems = [
+  { label: "Architecture", path: "/site-structure" },
+  { label: "Pages", path: "/pages" },
+  { label: "Components", path: "/components" },
+  { label: "Collections", path: "/collections" },
+  { label: "Media", path: "/media" },
+];
+const isSiteStructureRoute = computed(() =>
+  siteStructureItems.some(({ path }) =>
+    route.path === path || route.path.startsWith(`${path}/`),
+  ),
+);
 
 const openSubmenuItem = computed(() =>
-  selectedSubmenuGroupOverride.value === "online-store"
+  route.path === "/products"
+    ? { type: "group" as const, label: "Products", path: "/products", groupId: "products" }
+  : route.path === "/dashboard" || route.path === "/store-general"
     ? {
         type: "group" as const,
-        label: "Tienda Online",
-        path: "/online-store",
-        groupId: "online-store",
+        label: "General",
+        path: "/store-general",
+        groupId: "store-general",
       }
+    : isAppearanceRoute.value || isSiteStructureRoute.value
+      ? {
+          type: "group" as const,
+          label: isAppearanceRoute.value ? "Appearance" : "Site structure",
+          path: isAppearanceRoute.value ? "/appearance" : "/site-structure",
+          groupId: isAppearanceRoute.value ? "appearance" : "site-structure",
+        }
     : sectionNavItems.value.find(
         (item) => item.type === "group" && isGroupActive(item.path),
       ),
@@ -774,6 +781,7 @@ const showSubmenuPanel = computed(
   () =>
     (!isCollapsed.value ||
       showCollapsedSubmenuPanel.value ||
+      route.path === "/products" ||
       isOnlineStoreRoute.value) &&
     Boolean(openSubmenuItem.value),
 );
@@ -793,7 +801,6 @@ watch(
       openGroups.value["online-store"] = true;
     } else {
       closeAllGroups();
-      selectedSubmenuGroupOverride.value = null;
       showCollapsedSubmenuPanel.value = false;
     }
   },
@@ -950,20 +957,17 @@ const {
         </div>
 
         <SidebarNavGroup
-          label="Tienda Online"
+          label="Online Store"
           :icon="studioIcons.store"
           group-id="online-store"
           :open="Boolean(openGroups['online-store'])"
-          :active="
-            isOnlineStoreRoute ||
-            selectedSubmenuGroupOverride === 'online-store'
-          "
+          :active="isOnlineStoreRoute"
           :collapsed="isCollapsed"
           indicator-id="/online-store"
           inline-children
           @collapsed-hover="
             showCollapsedSidebarHoverMenu(
-              'Tienda Online',
+              'Online Store',
               $event,
               onlineStoreChildren,
             )
@@ -976,14 +980,9 @@ const {
         >
           <template #children>
             <FlickeringNavItem
-              v-for="(child, index) in onlineStoreChildren"
+              v-for="child in onlineStoreChildren"
               :key="child.path"
-              :active="
-                isActive(child.path.split('?')[0]) ||
-                (selectedSubmenuGroupOverride === 'online-store' &&
-                  index === 0 &&
-                  !isOnlineStoreRoute)
-              "
+              :active="isActive(child.path.split('?')[0]) || (child.path === '/store-general' && route.path === '/dashboard') || (child.path === '/site-structure' && isSiteStructureRoute) || (child.path === '/appearance' && isAppearanceRoute)"
               class="h-10! min-h-10! !py-2 !pl-10"
               @click="selectOnlineStoreChild(child.path)"
             >
@@ -1279,6 +1278,64 @@ const {
 
   <SettingsDialog />
   <HistoryDialog v-if="historyDialog.isOpen.value" />
+
+  <Teleport
+    v-if="secondaryPanel.hostReady.value && route.path === '/products'"
+    to="#studio-sidebar-submenu-items"
+    defer
+  >
+    <FlickeringNavItem
+      v-for="item in [{ label: 'All products', section: 'all' }, { label: 'Categories', section: 'categories' }, { label: 'Variants', section: 'variants' }, { label: 'Tags', section: 'tags' }, { label: 'Reviews', section: 'reviews' }]"
+      :key="item.section"
+      :active="(route.query.section || 'all') === item.section"
+      class="py-4.5"
+      @click="navigateTo(item.section === 'all' ? '/products' : `/products?section=${item.section}`)"
+    ><span>{{ item.label }}</span></FlickeringNavItem>
+  </Teleport>
+
+  <Teleport
+    v-if="secondaryPanel.hostReady.value && (route.path === '/store-general' || route.path === '/dashboard')"
+    to="#studio-sidebar-submenu-items"
+    defer
+  >
+    <FlickeringNavItem :active="route.path === '/store-general'" class="py-4.5" @click="navigateTo('/store-general')">
+      <span>Settings</span>
+    </FlickeringNavItem>
+    <FlickeringNavItem :active="route.path === '/dashboard'" class="py-4.5" @click="navigateTo('/dashboard')">
+      <span>Dashboard</span>
+    </FlickeringNavItem>
+  </Teleport>
+
+  <Teleport
+    v-if="secondaryPanel.hostReady.value && isSiteStructureRoute"
+    to="#studio-sidebar-submenu-items"
+    defer
+  >
+    <FlickeringNavItem
+      v-for="item in siteStructureItems"
+      :key="item.label"
+      :active="route.path === item.path || route.path.startsWith(`${item.path}/`)"
+      class="py-4.5"
+      @click="navigateTo(item.path)"
+    >
+      <span class="min-w-0 truncate">{{ item.label }}</span>
+    </FlickeringNavItem>
+  </Teleport>
+
+  <Teleport v-if="secondaryPanel.hostReady.value && isAppearanceRoute" to="#studio-sidebar-submenu-items" defer>
+    <FlickeringNavItem :active="route.path === '/appearance'" class="py-4.5" @click="navigateTo('/appearance')">
+      <span>Theme</span>
+    </FlickeringNavItem>
+    <FlickeringNavItem
+      v-for="child in DESIGN_SIDEBAR_CHILDREN"
+      :key="child.param"
+      :active="route.path === '/design' && isDesignChildActive(child.param)"
+      class="py-4.5"
+      @click="navigateTo(`/design?${child.param}`)"
+    >
+      <span class="min-w-0 truncate">{{ designNavLabel(child.param) }}</span>
+    </FlickeringNavItem>
+  </Teleport>
 
   <!-- Command Palette — mounted when search is open -->
   <StudioCommandPalette

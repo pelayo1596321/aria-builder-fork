@@ -87,6 +87,7 @@ const mainRows = ref<SchemaOrderRow[]>([]);
 const sidebarRows = ref<SchemaOrderRow[]>([]);
 
 const fields = computed(() => props.collection.schema.fields);
+const isProductMain = (area: string) => props.collection.name === "product" && area === "main";
 const layoutAreas = computed(() => [
   {
     key: "main" as const,
@@ -459,6 +460,7 @@ function canMoveField(event: {
   draggedContext?: { element?: SchemaOrderRow };
   to?: HTMLElement;
 }): boolean {
+  if (isProductMain(event.to?.dataset.layoutArea ?? "")) return false;
   const row = event.draggedContext?.element;
   if (row?.kind !== "system") {
     return true;
@@ -536,7 +538,7 @@ watch(
     >
       <section class="grid content-start gap-5">
         <p class="m-0 text-xs leading-5 text-muted-foreground">
-          {{ t("collections.schema.layoutHint") }}
+          {{ collection.name === 'product' ? 'Product main content fields are protected. Additional fields can be added for future customization.' : t("collections.schema.layoutHint") }}
         </p>
 
         <div v-for="area in layoutAreas" :key="area.key" class="grid gap-2">
@@ -561,7 +563,7 @@ watch(
             :group="{ name: 'entry-layout' }"
             :move="canMoveField"
             handle=".schema-field-drag-handle"
-            :disabled="isSaving || !canUpdateCollection"
+            :disabled="isSaving || !canUpdateCollection || isProductMain(area.key)"
             :data-layout-area="area.key"
             class="grid min-h-14 content-start gap-2 rounded-lg border border-dashed border-border/60 bg-card/15 p-2"
             @end="reorderFields"
@@ -569,17 +571,18 @@ watch(
             <template #item="{ element: row }">
               <div
                 class="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border border-border/50 bg-background px-1.5 py-1.5 shadow-xs transition-colors hover:border-border"
-                :class="row.kind === 'system' ? 'bg-muted/20' : ''"
+                :class="row.kind === 'system' || isProductMain(area.key) ? 'bg-muted/20' : ''"
                 @dblclick="
                   row.kind === 'field' &&
                   !row.managed &&
+                  !isProductMain(area.key) &&
                   openEditFieldFromCard($event, row.field)
                 "
               >
                 <button
                   type="button"
                   class="schema-field-drag-handle grid size-7 shrink-0 cursor-grab place-items-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-card hover:text-muted-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
-                  :disabled="isSaving || !canUpdateCollection"
+                  :disabled="isSaving || !canUpdateCollection || isProductMain(area.key)"
                   :aria-label="t('collections.schema.reorder')"
                 >
                   <span :class="[studioIcons.dragHandle, 'size-3.5']" />
@@ -591,7 +594,7 @@ watch(
 
                 <div class="flex items-center gap-0.5">
                   <div
-                    v-if="row.kind === 'field' && !row.managed"
+                    v-if="row.kind === 'field' && !row.managed && !isProductMain(area.key)"
                     class="schema-row-switcher"
                   >
                     <span

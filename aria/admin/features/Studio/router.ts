@@ -26,9 +26,8 @@ const layoutRoutes: RouteRecordRaw[] = isFeatureEnabled("studio.layouts")
     ];
 
 const emptyCommerceRoutes: RouteRecordRaw[] = [
-  { path: "/inicio", title: "Inicio" },
+  { path: "/inicio", title: "Home" },
   { path: "/orders", title: "Orders" },
-  { path: "/products", title: "Products" },
   { path: "/customers", title: "Customers" },
   { path: "/marketing", title: "Marketing" },
   { path: "/discounts", title: "Discounts" },
@@ -56,6 +55,30 @@ export const studioRoutes: RouteRecordRaw[] = [
   },
 
   ...emptyCommerceRoutes,
+
+  {
+    path: "/products",
+    component: () => import("./products/ProductsView.vue"),
+    meta: { section: "commerce", title: "Products" },
+  },
+
+  {
+    path: "/store-general",
+    component: () => import("./store-general/StoreGeneralView.vue"),
+    meta: { section: "store-general", title: "General" },
+  },
+
+  {
+    path: "/appearance",
+    component: () => import("./themes/ThemesView.vue"),
+    meta: { section: "appearance", title: "Appearance" },
+  },
+  { path: "/themes", redirect: "/appearance" },
+  {
+    path: "/site-structure",
+    component: () => import("./site-structure/SiteStructureView.vue"),
+    meta: { section: "site-structure", title: "Site structure" },
+  },
 
   {
     path: "/pages",

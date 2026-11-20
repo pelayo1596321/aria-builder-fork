@@ -82,7 +82,7 @@ const defaultGroupId = computed(() => {
 
 const usesSplitPanelChrome = computed(
   () =>
-    ["/components", "/collections", "/design", "/media"].includes(route.path) ||
+    ["/dashboard", "/store-general", "/appearance", "/site-structure", "/products", "/components", "/collections", "/design", "/media"].includes(route.path) ||
     route.path.startsWith("/collections/") ||
     route.path.startsWith("/components/") ||
     route.path.startsWith("/pages/"),

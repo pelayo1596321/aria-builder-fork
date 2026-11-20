@@ -39,7 +39,6 @@ export const settingsTabGroups: SettingsTabGroup[] = [
     id: "site",
     labelKey: "settings.group.site",
     tabs: [
-      { id: "general", labelKey: "settings.tab.general" },
       { id: "appearance", labelKey: "settings.tab.appearance" },
       { id: "localization", labelKey: "settings.tab.localization" },
       { id: "custom-code", labelKey: "settings.tab.customCode" },

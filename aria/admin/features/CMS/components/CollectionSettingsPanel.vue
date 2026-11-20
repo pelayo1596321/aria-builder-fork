@@ -567,7 +567,7 @@ async function openSelectedPage(slug: string): Promise<void> {
           </p>
         </div>
 
-        <div class="grid gap-2">
+        <div v-if="collection.name !== 'product'" class="grid gap-2">
           <Label class="text-sm! text-muted-foreground">{{ t("collections.settings.kind") }}</Label>
           <div class="grid grid-cols-1 items-start gap-3 sm:grid-cols-4">
             <button
@@ -641,7 +641,7 @@ async function openSelectedPage(slug: string): Promise<void> {
 
       <section class="grid gap-7">
 
-        <div class="grid gap-2">
+        <div v-if="collection.name !== 'product'" class="grid gap-2">
           <Label class="text-sm! text-muted-foreground">{{ t("collections.settings.scope") }}</Label>
           <div
             class="grid grid-cols-1 items-start gap-3 sm:grid-cols-2"

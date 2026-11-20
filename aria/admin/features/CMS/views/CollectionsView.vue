@@ -291,6 +291,10 @@ async function requestDeleteCollections(): Promise<void> {
 
   const targets = resolveBulkTargets(undefined, selectedCollectionIds.value);
   if (targets.length === 0) return;
+  if (filteredCollections.value.some((collection) => collection.name === "product" && targets.includes(collection.id))) {
+    toast.error("The Product collection cannot be deleted.");
+    return;
+  }
 
   collectionIdsToDelete.value = targets;
   await loadDeleteImpact(targets);

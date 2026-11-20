@@ -848,6 +848,7 @@ async function confirmDeleteEntries(): Promise<void> {
           </Collapsible>
           <CmsCommentModerationPanel :collection="collection" />
           <section
+            v-if="collection.name !== 'product'"
             class="grid gap-4 border-t border-border/60 pt-6"
             data-testid="delete-collection-section"
           >

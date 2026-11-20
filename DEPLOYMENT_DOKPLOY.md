@@ -35,14 +35,63 @@ branch named `production` for the absence of a production environment.
    have not yet been committed.
 4. Push the commit to GitHub with
    `git push origin ecommerce-development`.
-5. Open Dokploy at `https://dokploy.regaloskoko.com`, then select **Projects →
-   Aria Builder → production → Aria Builder Production**. Confirm **Autodeploy**
-   is enabled. If enabled, the GitHub push should start a deployment; if not,
-   use **Deploy** on this service to publish the pushed commit.
-6. Open the service's **Deployments** tab and wait for the deployment matching
-   the pushed commit to finish successfully. Check the service is healthy and
-   its configured production domain loads. A successful Git push alone is not
-   proof that production finished deploying.
+5. Report the pushed commit and ask exactly: **¿Quieres que verifique si el
+   despliegue ya terminó y te avise?** Stop and wait for the user's answer.
+   If the user says no, finish after the push; do not open Dokploy or monitor
+   the deployment. The configured autodeploy may still run automatically.
+   If the user says yes, or has already explicitly requested verification,
+   follow the in-app browser procedure below. A push alone does not prove that
+   production was successfully updated.
+
+### Verify in Dokploy using the in-app browser
+
+Use the user's existing in-app browser session. Do not use Google Chrome,
+desktop computer-use, or `web__run` for this verification: they use different
+sessions or can interfere with the user's browsing. `open_in_codex` can open a
+tab, but does not itself read or control the page.
+
+1. Discover the available browser plugin/skill and follow its current setup
+   instructions. Use `mcp__node_repl__js` with the bundled browser client.
+   On the working installation on 2026-11-18, the bootstrap was:
+
+   ```js
+   var { setupBrowserRuntime } = await import('C:/Users/Pelayo/.codex/plugins/cache/openai-bundled/browser/26.1111.21308/scripts/browser-client.mjs');
+   globalThis.agent = await setupBrowserRuntime();
+   console.log(await agent.browsers.list());
+   ```
+
+   The plugin version and path can change: locate the installed
+   `browser-client.mjs` and read the available browser instructions rather
+   than assuming this version remains current. The returned runtime must be
+   assigned to `agent`; calling `setupBrowserRuntime()` without assigning its
+   return value does not create it in this installation.
+2. From `agent.browsers.list()`, choose the browser with `type: 'iab'` for the
+   current Codex session; never use the `extension` browser. Get it using
+   `agent.browsers.get(id)`, list tabs with `browser.tabs.list()`, and reuse the
+   existing Dokploy tab. Open a new in-app tab only if necessary.
+3. In `https://dokploy.regaloskoko.com`, open **Projects → Aria Builder →
+   production → Aria Builder Production**. In the previously used browser
+   client, `await browser.tabs.get(id)` and `tab.playwright.domSnapshot()`
+   inspect the page, and `tab.playwright.getByRole('tab',
+   {name:'Deployments'}).click()` opens its deployment list. Follow the
+   current browser documentation for the supported API.
+4. Confirm **Autodeploy** is enabled on General, then open **Deployments**.
+   Match the commit SHA to the pushed commit. A green service indicator alone
+   is insufficient. If the matching deployment is running, monitor it and
+   provide periodic progress until it finishes. Read its **View** log if it
+   fails. If autodeploy is disabled or no deployment starts, use **Deploy**
+   on this existing service for the already authorized release.
+5. Confirm the matching deployment is **done**, the log says Docker Compose
+   deployed and the container started, and check the configured production
+   domain and service health where accessible. Report the actual result and SHA.
+   If verification cannot be completed, state exactly what was observed and
+   that production completion remains unconfirmed.
+6. If a deployment fails, inspect its log and correct the cause within the
+   authorized release scope, preserving unrelated changes; commit and push the
+   fix and monitor its deployment. On 2026-11-18 `npm ci` failed because
+   `package-lock.json` was out of sync. Updating the lockfile using the npm
+   version used in the Docker build, then committing and pushing it, resolved
+   that failure. Check the actual error before applying this remedy.
 
 ### Important
 

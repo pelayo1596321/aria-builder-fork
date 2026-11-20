@@ -665,7 +665,7 @@ async function onFieldBlur(
           <strong>{{ availability.requestHost }}</strong
           >{{ t("settings.analytics.warning.siteUrlData") }}
           <a
-            href="/admin/dashboard?settings=general"
+            href="/admin/store-general"
             target="_self"
             class="underline underline-offset-2 hover:opacity-80"
             >{{ t("settings.analytics.warning.updateSiteUrl") }}</a

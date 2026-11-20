@@ -1,194 +1,5 @@
 {
   "icons": {
-    "lucide:vector-square": {
-      "id": "lucide:vector-square",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M17.055 4.533a24 24 0 0 0-10.11 0m12.522 12.522a24 24 0 0 0 0-10.11m-14.934 0a24 24 0 0 0 0 10.11m2.412 2.412a24 24 0 0 0 10.11 0\"/><circle cx=\"19\" cy=\"19\" r=\"2\"/><circle cx=\"19\" cy=\"5\" r=\"2\"/><circle cx=\"5\" cy=\"19\" r=\"2\"/><circle cx=\"5\" cy=\"5\" r=\"2\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "e73030c2c2426f36935b",
-      "hasInternalIds": false
-    },
-    "lucide:vegan": {
-      "id": "lucide:vegan",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M16 8q6 0 6-6q-6 0-6 6\"/><path d=\"M17.41 3.59a10 10 0 1 0 3 3\"/><path d=\"M2 2a26.6 26.6 0 0 1 10 20c.9-6.82 1.5-9.5 4-14\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "f56dec3b39a9cdff8f65",
-      "hasInternalIds": false
-    },
-    "lucide:venetian-mask": {
-      "id": "lucide:venetian-mask",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M18 11c-1.5 0-2.5.5-3 2\"/><path d=\"M4 6a2 2 0 0 0-2 2v4a5 5 0 0 0 5 5a8 8 0 0 1 5 2a8 8 0 0 1 5-2a5 5 0 0 0 5-5V8a2 2 0 0 0-2-2h-3a8 8 0 0 0-5 2a8 8 0 0 0-5-2z\"/><path d=\"M6 11c1.5 0 2.5.5 3 2\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "ee5031dd1d53c8a51d11",
-      "hasInternalIds": false
-    },
-    "lucide:venus": {
-      "id": "lucide:venus",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M12 15v7m-3-3h6\"/><circle cx=\"12\" cy=\"9\" r=\"6\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "58368ccef00a09e6118a",
-      "hasInternalIds": false
-    },
-    "lucide:venus-and-mars": {
-      "id": "lucide:venus-and-mars",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M10 20h4m-2-4v6m5-20h4v4m0-4l-5.46 5.46\"/><circle cx=\"12\" cy=\"11\" r=\"5\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "3f311a07124f1bc2520e",
-      "hasInternalIds": false
-    },
-    "lucide:verified": {
-      "id": "lucide:verified",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M3.85 8.62a4 4 0 0 1 4.78-4.77a4 4 0 0 1 6.74 0a4 4 0 0 1 4.78 4.78a4 4 0 0 1 0 6.74a4 4 0 0 1-4.77 4.78a4 4 0 0 1-6.75 0a4 4 0 0 1-4.78-4.77a4 4 0 0 1 0-6.76\"/><path d=\"m16 9l-5.5 5.5L8 12\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "5d446397775492e3df90",
-      "hasInternalIds": false
-    },
-    "lucide:vibrate": {
-      "id": "lucide:vibrate",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m2 8l2 2l-2 2l2 2l-2 2m20-8l-2 2l2 2l-2 2l2 2\"/><rect width=\"8\" height=\"14\" x=\"8\" y=\"5\" rx=\"1\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "68cd85657d8c533545bd",
-      "hasInternalIds": false
-    },
-    "lucide:vibrate-off": {
-      "id": "lucide:vibrate-off",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m2 8l2 2l-2 2l2 2l-2 2m20-8l-2 2l2 2l-2 2l2 2M8 8v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2m0-5.66V6c0-.55-.45-1-1-1h-4.34M2 2l20 20\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "927d97e34f3238c651c2",
-      "hasInternalIds": false
-    },
-    "lucide:video": {
-      "id": "lucide:video",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m16 13l5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5\"/><rect width=\"14\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "4ab1279b05fb267aa267",
-      "hasInternalIds": false
-    },
-    "lucide:video-off": {
-      "id": "lucide:video-off",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10.66 6H14a2 2 0 0 1 2 2v2.5l5.248-3.062A.5.5 0 0 1 22 7.87v8.196M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2M2 2l20 20\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "3f5dbf1bbae566700a31",
-      "hasInternalIds": false
-    },
-    "lucide:videotape": {
-      "id": "lucide:videotape",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"M2 8h20\"/><circle cx=\"8\" cy=\"14\" r=\"2\"/><path d=\"M8 12h8\"/><circle cx=\"16\" cy=\"14\" r=\"2\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "3b57c2d356b7d42ed468",
-      "hasInternalIds": false
-    },
-    "lucide:view": {
-      "id": "lucide:view",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M21 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2M21 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><path d=\"M18.944 12.33a1 1 0 0 0 0-.66a7.5 7.5 0 0 0-13.888 0a1 1 0 0 0 0 .66a7.5 7.5 0 0 0 13.888 0\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "62425299ddf24bab7438",
-      "hasInternalIds": false
-    },
-    "lucide:virus": {
-      "id": "lucide:virus",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M12 14.991h.01M12 22v-3m0-17v3m1 17h-2m2-20h-2m2.99 8H14m2.5 9.794l-1-1.733m1-13.856l-1 1.732M19.794 16.5l-1.732-1m1.732-8l-1.732 1M2 12h3m-3 1v-2m20 1h-3m3 1v-2M4.206 16.5l1.732-1m-1.732-8l1.732 1M7.5 19.794l1-1.733m-1-13.856l1 1.732M9 12h.01\"/><circle cx=\"12\" cy=\"12\" r=\"7\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "d9c12d5747d600fe04cb",
-      "hasInternalIds": false
-    },
-    "lucide:virus-off": {
-      "id": "lucide:virus-off",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10.01 10h.01M12 14.991h.01M12 22v-3m0-17v3m1 17h-2m2-20h-2m5.5 17.794l-1-1.733m1-13.856l-1 1.732m3.391 7.298a7 7 0 0 0-8.126-8.126M19.794 7.5l-1.732 1M2 12h3m-3 1v-2m0-9l20 20m0-10h-3m3 1v-2M4.206 16.5l1.732-1m-1.732-8l1.732 1M7.05 7.05a7 7 0 0 0 9.9 9.9M7.5 19.794l1-1.733M9 12h.01\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "76d75da767b5cfcad64c",
-      "hasInternalIds": false
-    },
-    "lucide:voicemail": {
-      "id": "lucide:voicemail",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/><path d=\"M6 16h12\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "73c22e6818fa150e80d1",
-      "hasInternalIds": false
-    },
-    "lucide:volleyball": {
-      "id": "lucide:volleyball",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M11 7a16 16 20 0 1 10.98 4.362M12 12a13 13 0 0 1-8.66 5m13.49-3.366a16 16 0 0 1-9.267 7.328\"/><path d=\"M20.66 17A13 13 0 0 0 12 12a13 13 0 0 1 0-10M8.17 15.366a16 16 0 0 1-1.713-11.69\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "de309acea3f35a2fe635",
-      "hasInternalIds": false
-    },
-    "lucide:volume": {
-      "id": "lucide:volume",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "daad27ba20cfcc0cacac",
-      "hasInternalIds": false
-    },
-    "lucide:volume-1": {
-      "id": "lucide:volume-1",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298zM16 9a5 5 0 0 1 0 6\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "2761dcf1aa6b26463c91",
-      "hasInternalIds": false
-    },
-    "lucide:volume-2": {
-      "id": "lucide:volume-2",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298zM16 9a5 5 0 0 1 0 6m3.364 3.364a9 9 0 0 0 0-12.728\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "c1000c07da189b68dae8",
-      "hasInternalIds": false
-    },
-    "lucide:volume-off": {
-      "id": "lucide:volume-off",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M16 9a5 5 0 0 1 .95 2.293m2.414-5.657a9 9 0 0 1 1.889 9.96M2 2l20 20M7 7l-.587.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298V11M9.828 4.172A.686.686 0 0 1 11 4.657v.686\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "994900686f67f3c9231b",
-      "hasInternalIds": false
-    },
-    "lucide:volume-x": {
-      "id": "lucide:volume-x",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298zm5.5 9.798l5-5m-5 0l5 5\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "a388501983eb45732267",
-      "hasInternalIds": false
-    },
     "lucide:vote": {
       "id": "lucide:vote",
       "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m9 12l2 2l4-4\"/><path d=\"M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5zm17 12H2\"/></g>",
@@ -432,15 +243,6 @@
       "contentHash": "73455abe9ace808d83f7",
       "hasInternalIds": false
     },
-    "lucide:whistle": {
-      "id": "lucide:whistle",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10 6v4m11-4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-5.675A7 7 0 1 1 9 6z\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "6e171da1304ade292ade",
-      "hasInternalIds": false
-    },
     "lucide:whole-word": {
       "id": "lucide:whole-word",
       "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><circle cx=\"7\" cy=\"12\" r=\"3\"/><path d=\"M10 9v6\"/><circle cx=\"17\" cy=\"12\" r=\"3\"/><path d=\"M14 7v8m8 2v1c0 .5-.5 1-1 1H3c-.5 0-1-.5-1-1v-1\"/></g>",
@@ -461,11 +263,11 @@
     },
     "lucide:wifi-cog": {
       "id": "lucide:wifi-cog",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m14.305 19.53l.923-.382m0-2.296l-.923-.383m2.547-1.241l-.383-.923m.383 6.467l-.383.924m2.679-6.468l.383-.923m-.001 7.391l-.382-.924M2 8.82a15 15 0 0 1 20 0m-1.228 8.032l.924-.383m-.924 2.679l.924.383M5 12.859a10 10 0 0 1 10.18-2.342M8.5 16.429a5 5 0 0 1 1.998-1.2\"/><circle cx=\"18\" cy=\"18\" r=\"3\"/></g>",
+      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"m14.305 19.53l.923-.382m0-2.296l-.923-.383m2.547-1.241l-.383-.923m.383 6.467l-.383.924m2.679-6.468l.383-.923m-.001 7.391l-.382-.924M2 7.82a15 15 0 0 1 20 0m-1.228 9.032l.924-.383m-.924 2.679l.924.383M5 11.858a10 10 0 0 1 11.5-1.785m-8 5.356a5 5 0 0 1 2.413-1.31\"/><circle cx=\"18\" cy=\"18\" r=\"3\"/></g>",
       "viewBox": "0 0 24 24",
       "width": 24,
       "height": 24,
-      "contentHash": "40eb722015f7a5938a71",
+      "contentHash": "04d03f0f719fc100b404",
       "hasInternalIds": false
     },
     "lucide:wifi-high": {
@@ -475,15 +277,6 @@
       "width": 24,
       "height": 24,
       "contentHash": "05bd45c19c7b568761d1",
-      "hasInternalIds": false
-    },
-    "lucide:wifi-lock": {
-      "id": "lucide:wifi-lock",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M2 8.82a15 15 0 0 1 20 0M20 16v-2a2 2 0 0 0-4 0v2M5 12.859a10 10 0 0 1 8.436-2.756M8.5 16.429a5 5 0 0 1 1.794-1.13\"/><rect width=\"8\" height=\"5\" x=\"14\" y=\"16\" rx=\"1\"/></g>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "763c37f90b59c8b167e5",
       "hasInternalIds": false
     },
     "lucide:wifi-low": {
@@ -547,15 +340,6 @@
       "width": 24,
       "height": 24,
       "contentHash": "3134112dc8d436a83549",
-      "hasInternalIds": false
-    },
-    "lucide:wind-arrow-up": {
-      "id": "lucide:wind-arrow-up",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10 2v8m2.8 11.6A2 2 0 1 0 14 18H2m15.5-8a2.5 2.5 0 1 1 2 4H2m4-8l4-4l4 4\"/>",
-      "viewBox": "0 0 24 24",
-      "width": 24,
-      "height": 24,
-      "contentHash": "516b8319adad96c46f2e",
       "hasInternalIds": false
     },
     "lucide:wine": {
@@ -677,20 +461,20 @@
     },
     "lucide:zap": {
       "id": "lucide:zap",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z\"/>",
+      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z\"/>",
       "viewBox": "0 0 24 24",
       "width": 24,
       "height": 24,
-      "contentHash": "b22aad99d596fa804eab",
+      "contentHash": "0bab3dde4bfb38949a81",
       "hasInternalIds": false
     },
     "lucide:zap-off": {
       "id": "lucide:zap-off",
-      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10.768 5.111L13.44 2.44a1.5 1.5 0 0 1 2.474 1.561l-1.633 4.625m4.608 4.606l.672-.672A1.5 1.5 0 0 0 18.5 10h-2.844M2 2l20 20M7.94 7.94l-3.5 3.499A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l5.5-5.5\"/>",
+      "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10.513 4.856L13.12 2.17a.5.5 0 0 1 .86.46l-1.377 4.317M15.656 10H20a1 1 0 0 1 .78 1.63l-1.72 1.773m-2.787 2.87L10.88 21.83a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4a1 1 0 0 1-.78-1.63l4.507-4.643M2 2l20 20\"/>",
       "viewBox": "0 0 24 24",
       "width": 24,
       "height": 24,
-      "contentHash": "246b764a0f2912977df2",
+      "contentHash": "5983cc5edb01672b6423",
       "hasInternalIds": false
     },
     "lucide:zodiac-aquarius": {
@@ -722,11 +506,11 @@
     },
     "lucide:zodiac-capricorn": {
       "id": "lucide:zodiac-capricorn",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M11 21a3 3 0 0 0 3-3V6.5a1 1 0 0 0-7 0M7 19V6a3 3 0 0 0-3-3\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/></g>",
+      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M11 21a3 3 0 0 0 3-3V6.5a1 1 0 0 0-7 0M7 19V6a3 3 0 0 0-3-3h0\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/></g>",
       "viewBox": "0 0 24 24",
       "width": 24,
       "height": 24,
-      "contentHash": "ad9dbba9cf1a994962ab",
+      "contentHash": "8338d9171acfe60c7bb5",
       "hasInternalIds": false
     },
     "lucide:zodiac-gemini": {
@@ -803,11 +587,11 @@
     },
     "lucide:zodiac-virgo": {
       "id": "lucide:zodiac-virgo",
-      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M11 5.5a1 1 0 0 1 5 0V16a5 5 0 0 0 5 5\"/><path d=\"M16 11.5a1 1 0 0 1 5 0V16a5 5 0 0 1-5 5M6 19V6a3 3 0 0 0-3-3m3 2.5a1 1 0 0 1 5 0V19\"/></g>",
+      "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M11 5.5a1 1 0 0 1 5 0V16a5 5 0 0 0 5 5\"/><path d=\"M16 11.5a1 1 0 0 1 5 0V16a5 5 0 0 1-5 5M6 19V6a3 3 0 0 0-3-3h0m3 2.5a1 1 0 0 1 5 0V19\"/></g>",
       "viewBox": "0 0 24 24",
       "width": 24,
       "height": 24,
-      "contentHash": "519485a889130b9d14d7",
+      "contentHash": "31d75bb8e6eb61babec7",
       "hasInternalIds": false
     },
     "lucide:zoom-in": {

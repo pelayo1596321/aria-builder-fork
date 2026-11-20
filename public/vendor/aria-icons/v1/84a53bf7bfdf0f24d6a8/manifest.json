@@ -1,140 +1,122 @@
 {
   "schemaVersion": 1,
-  "snapshotVersion": "99111f96681b560b849c",
+  "snapshotVersion": "84a53bf7bfdf0f24d6a8",
   "packs": {
     "lucide": {
       "key": "lucide",
       "label": "Lucide",
       "category": "icon",
-      "catalogPath": "packs/lucide/catalog.3008ba1e919fdd53.json",
-      "catalogHash": "3008ba1e919fdd53",
-      "iconCount": 2380,
+      "catalogPath": "packs/lucide/catalog.595836a0332b750f.json",
+      "catalogHash": "595836a0332b750f",
+      "iconCount": 2019,
       "shards": [
         {
           "key": "000-ax-ar",
-          "path": "packs/lucide/shards/000-ax-ar.345920de0079159a.json",
-          "hash": "345920de0079159a",
+          "path": "packs/lucide/shards/000-ax-ar.dae4679d17ff6490.json",
+          "hash": "dae4679d17ff6490",
           "count": 122
         },
         {
-          "key": "001-ar-be",
-          "path": "packs/lucide/shards/001-ar-be.f6b87d97b5fbc6b7.json",
-          "hash": "f6b87d97b5fbc6b7",
-          "count": 117
+          "key": "001-ar-bl",
+          "path": "packs/lucide/shards/001-ar-bl.af7f4b8e7b48d7ab.json",
+          "hash": "af7f4b8e7b48d7ab",
+          "count": 116
         },
         {
-          "key": "002-bi-ca",
-          "path": "packs/lucide/shards/002-bi-ca.ef9073c6aa588d89.json",
-          "hash": "ef9073c6aa588d89",
+          "key": "002-bl-ca",
+          "path": "packs/lucide/shards/002-bl-ca.f2f5b62e5bae108a.json",
+          "hash": "f2f5b62e5bae108a",
           "count": 108
         },
         {
-          "key": "003-ca-ch",
-          "path": "packs/lucide/shards/003-ca-ch.2a8efbc2eade7dbc.json",
-          "hash": "2a8efbc2eade7dbc",
-          "count": 116
-        },
-        {
-          "key": "004-ch-cl",
-          "path": "packs/lucide/shards/004-ch-cl.97ffdcdccb7f66b6.json",
-          "hash": "97ffdcdccb7f66b6",
-          "count": 122
-        },
-        {
-          "key": "005-cl-da",
-          "path": "packs/lucide/shards/005-cl-da.df7d1839cbde0907.json",
-          "hash": "df7d1839cbde0907",
-          "count": 117
-        },
-        {
-          "key": "006-de-fi",
-          "path": "packs/lucide/shards/006-de-fi.474c24ba12f1cbd6.json",
-          "hash": "474c24ba12f1cbd6",
-          "count": 114
-        },
-        {
-          "key": "007-fi-fl",
-          "path": "packs/lucide/shards/007-fi-fl.39d4f6e32d259c33.json",
-          "hash": "39d4f6e32d259c33",
-          "count": 105
-        },
-        {
-          "key": "008-fo-gr",
-          "path": "packs/lucide/shards/008-fo-gr.007515a5b5b56623.json",
-          "hash": "007515a5b5b56623",
-          "count": 112
-        },
-        {
-          "key": "009-gr-im",
-          "path": "packs/lucide/shards/009-gr-im.47dfc111cb2c4fae.json",
-          "hash": "47dfc111cb2c4fae",
-          "count": 106
-        },
-        {
-          "key": "010-in-li",
-          "path": "packs/lucide/shards/010-in-li.aa14a55f115c4a07.json",
-          "hash": "aa14a55f115c4a07",
+          "key": "003-ca-ci",
+          "path": "packs/lucide/shards/003-ca-ci.0ac7892923b76b94.json",
+          "hash": "0ac7892923b76b94",
           "count": 123
         },
         {
-          "key": "011-li-me",
-          "path": "packs/lucide/shards/011-li-me.2092623bf43d7541.json",
-          "hash": "2092623bf43d7541",
-          "count": 118
+          "key": "004-ci-cr",
+          "path": "packs/lucide/shards/004-ci-cr.0ca194b84c039bde.json",
+          "hash": "0ca194b84c039bde",
+          "count": 119
         },
         {
-          "key": "012-me-oc",
-          "path": "packs/lucide/shards/012-me-oc.d558e9ecae1fbae2.json",
-          "hash": "d558e9ecae1fbae2",
-          "count": 116
+          "key": "005-cr-fi",
+          "path": "packs/lucide/shards/005-cr-fi.3277fb06a59d7986.json",
+          "hash": "3277fb06a59d7986",
+          "count": 114
         },
         {
-          "key": "013-oc-pi",
-          "path": "packs/lucide/shards/013-oc-pi.b76b3211d78be8dd.json",
-          "hash": "b76b3211d78be8dd",
-          "count": 110
-        },
-        {
-          "key": "014-pi-ro",
-          "path": "packs/lucide/shards/014-pi-ro.8347e6bf9caa1f18.json",
-          "hash": "8347e6bf9caa1f18",
+          "key": "006-fi-fo",
+          "path": "packs/lucide/shards/006-fi-fo.c7b1f2e99cab81a1.json",
+          "hash": "c7b1f2e99cab81a1",
           "count": 106
         },
         {
-          "key": "015-ro-sh",
-          "path": "packs/lucide/shards/015-ro-sh.49535e7300ff55b3.json",
-          "hash": "49535e7300ff55b3",
+          "key": "007-fo-gr",
+          "path": "packs/lucide/shards/007-fo-gr.525091aaf1a573d8.json",
+          "hash": "525091aaf1a573d8",
+          "count": 113
+        },
+        {
+          "key": "008-gr-la",
+          "path": "packs/lucide/shards/008-gr-la.7232b038e0369eb9.json",
+          "hash": "7232b038e0369eb9",
+          "count": 111
+        },
+        {
+          "key": "009-la-me",
+          "path": "packs/lucide/shards/009-la-me.af7f6ddc7c1a7ebd.json",
+          "hash": "af7f6ddc7c1a7ebd",
+          "count": 119
+        },
+        {
+          "key": "010-me-no",
+          "path": "packs/lucide/shards/010-me-no.05d24e4278fe50e9.json",
+          "hash": "05d24e4278fe50e9",
+          "count": 119
+        },
+        {
+          "key": "011-no-pi",
+          "path": "packs/lucide/shards/011-no-pi.bc1f63ae7a03e84d.json",
+          "hash": "bc1f63ae7a03e84d",
           "count": 110
         },
         {
-          "key": "016-sh-sq",
-          "path": "packs/lucide/shards/016-sh-sq.086dd4b9f87bed8b.json",
-          "hash": "086dd4b9f87bed8b",
-          "count": 115
+          "key": "012-pi-ro",
+          "path": "packs/lucide/shards/012-pi-ro.17c24f3ffa870e0e.json",
+          "hash": "17c24f3ffa870e0e",
+          "count": 108
         },
         {
-          "key": "017-sq-st",
-          "path": "packs/lucide/shards/017-sq-st.7b0e5c4bca8e04fd.json",
-          "hash": "7b0e5c4bca8e04fd",
+          "key": "013-rs-sk",
+          "path": "packs/lucide/shards/013-rs-sk.4d8a073931064eb4.json",
+          "hash": "4d8a073931064eb4",
+          "count": 112
+        },
+        {
+          "key": "014-sk-sq",
+          "path": "packs/lucide/shards/014-sk-sq.af3fa5d2b6bdb618.json",
+          "hash": "af3fa5d2b6bdb618",
+          "count": 118
+        },
+        {
+          "key": "015-sq-to",
+          "path": "packs/lucide/shards/015-sq-to.9f7a25e2b82fbe76.json",
+          "hash": "9f7a25e2b82fbe76",
+          "count": 117
+        },
+        {
+          "key": "016-to-vo",
+          "path": "packs/lucide/shards/016-to-vo.235fe49010dbe5fd.json",
+          "hash": "235fe49010dbe5fd",
           "count": 116
         },
         {
-          "key": "018-st-to",
-          "path": "packs/lucide/shards/018-st-to.81ab675f4474b825.json",
-          "hash": "81ab675f4474b825",
-          "count": 120
-        },
-        {
-          "key": "019-to-ve",
-          "path": "packs/lucide/shards/019-to-ve.74a975b770c48a1d.json",
-          "hash": "74a975b770c48a1d",
-          "count": 115
-        },
-        {
-          "key": "020-ve-zo",
-          "path": "packs/lucide/shards/020-ve-zo.143c838fd8b3102e.json",
-          "hash": "143c838fd8b3102e",
-          "count": 92
+          "key": "017-vo-zo",
+          "path": "packs/lucide/shards/017-vo-zo.cbcb4b0cc9e697f1.json",
+          "hash": "cbcb4b0cc9e697f1",
+          "count": 68
         }
       ]
     },

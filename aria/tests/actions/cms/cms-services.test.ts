@@ -106,7 +106,26 @@ describe("CMS services", () => {
 
   afterEach(async () => {
     client.close();
-    await fs.rm(path.dirname(dbPath), { recursive: true, force: true });
+    await fs.rm(path.dirname(dbPath), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  });
+
+  it("protects the Product collection and its main fields while allowing extra fields", async () => {
+    const product = await createCollectionOnAdapter(adapter, {
+      name: "product", label: "Product", kind: "data",
+      fields: [{ key: "price", label: "Price", type: "number" }, { key: "description", label: "Description", type: "text" }],
+    });
+    const entry = await createEntryOnAdapter(adapter, { collectionId: product.id, title: "Example product", frontmatter: { price: 10 } }, actor("author-1", "admin"));
+    await expect(deleteCollectionOnAdapter(adapter, product.id)).rejects.toThrow("cannot be deleted");
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { kind: "content" } })).rejects.toThrow("kind and scope cannot be changed");
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { scope: "local" } })).rejects.toThrow("kind and scope cannot be changed");
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { kind: "data", scope: "global" } })).resolves.toMatchObject({ kind: "data", scope: "global" });
+    await expect(adapter.getEntry({ collectionId: product.id, idOrSlug: entry.entry.id })).resolves.not.toBeNull();
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { fields: [{ key: "price", label: "Price", type: "number" }] } })).rejects.toThrow("cannot be edited");
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { fields: [{ key: "price", label: "Changed", type: "number" }, { key: "description", label: "Description", type: "text" }] } })).rejects.toThrow("cannot be edited");
+    await expect(updateCollectionOnAdapter(adapter, { id: product.id, patch: { entryFieldOrder: [{ kind: "system", key: "title" }, { kind: "system", key: "slug" }, { kind: "field", key: "description" }, { kind: "field", key: "price" }] } })).rejects.toThrow("cannot be edited");
+    const updated = await updateCollectionOnAdapter(adapter, { id: product.id, patch: { fields: [...product.schema.fields, { key: "material", label: "Material", type: "string" }] } });
+    expect(updated.schema.fields.map((field) => field.key)).toContain("material");
+    await expect(getCollectionFromAdapter(adapter, product.id)).resolves.toMatchObject({ name: "product" });
   });
 
   it("creates a collection and entry with schema validation", async () => {

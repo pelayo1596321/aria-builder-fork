@@ -71,9 +71,10 @@ const itemCountLabel = computed(() => {
     </div>
 
     <div class="space-y-2 p-3.5">
-      <h2 class="m-0 min-w-0 truncate text-sm font-medium text-foreground">
-        {{ collection.label }}
-      </h2>
+      <div class="flex min-w-0 items-center gap-2">
+        <h2 class="m-0 min-w-0 truncate text-sm font-medium text-foreground">{{ collection.label }}</h2>
+        <span v-if="collection.name === 'product'" class="shrink-0 rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary" title="Collection used by the store's Products section">Store products</span>
+      </div>
 
       <div
         class="flex min-w-0 items-center justify-between gap-3 text-2xs text-muted-foreground"

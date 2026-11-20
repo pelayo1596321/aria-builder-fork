@@ -128,7 +128,7 @@ scheduleBackgroundBootWork(
             variant="headerAction"
             size="icon-header"
             :aria-label="t('dashboard.siteSettings')"
-            @click="settingsDialog.open('general')"
+            @click="router.navigateTo('/store-general')"
           >
             <span
               :class="[studioIcons.settings, 'size-3.5 shrink-0']"

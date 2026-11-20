@@ -93,7 +93,7 @@ export function useCmsCollectionsTable(options: UseCmsCollectionsTableOptions) {
             value: options.getCollectionIconClass(row.original),
             class: "size-4 shrink-0 text-muted-foreground",
           }),
-          h("div", { class: "min-w-0" }, [
+          h("div", { class: row.original.name === "product" ? "shrink-0" : "min-w-0" }, [
             h(
               "span",
               {
@@ -102,6 +102,9 @@ export function useCmsCollectionsTable(options: UseCmsCollectionsTableOptions) {
               row.original.label,
             ),
           ]),
+          row.original.name === "product"
+            ? h("span", { class: "shrink-0 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary", title: "Collection used by the store's Products section" }, "Store")
+            : null,
         ]),
     }),
     columnHelper.accessor((row) => row.name, {
